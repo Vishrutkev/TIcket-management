@@ -28,6 +28,7 @@ async function main() {
   }
 
   await createUser('Admin', adminEmail, adminPassword, Role.admin)
+  await createUser('Agent', 'agent@example.com', adminPassword, Role.agent)
 }
 
 main()

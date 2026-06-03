@@ -36,13 +36,14 @@ ticket-management/
 │       │   └── Navbar.tsx    # top nav with user name + sign out
 │       ├── pages/
 │       │   ├── LoginPage.tsx # email/password login form
-│       │   └── HomePage.tsx  # dashboard shell
+│       │   ├── HomePage.tsx  # dashboard shell
+│       │   └── UsersPage.tsx # admin-only user management
 │       ├── lib/
 │       │   ├── auth-client.ts  # Better Auth React client
 │       │   ├── api.ts          # typed fetch wrapper for all API calls
 │       │   └── utils.ts        # shadcn cn() utility
 │       ├── index.css         # Tailwind v4 entrypoint + shadcn CSS variables
-│       └── App.tsx           # router + RequireAuth guard
+│       └── App.tsx           # router + RequireAuth + RequireAdmin guards
 ├── server/                   # Express backend (port 3000)
 │   ├── prisma/
 │   │   ├── schema.prisma     # DB schema
@@ -114,11 +115,12 @@ RESEND_INBOUND_DOMAIN="yourdomain.com"
 
 Better Auth handles all authentication. Sessions are database-backed with an `httpOnly` cookie.
 
-- **Server:** `server/src/lib/auth.ts` — `betterAuth()` with `prismaAdapter` and `emailAndPassword`
-- **Client:** `client/src/lib/auth-client.ts` — `createAuthClient` from `better-auth/react`
+- **Server:** `server/src/lib/auth.ts` — `betterAuth()` with `prismaAdapter`, `emailAndPassword`, and `user.additionalFields` declaring `role` so it is included in the session payload
+- **Client:** `client/src/lib/auth-client.ts` — `createAuthClient` with `InferServerPlugin<typeof auth>()` from `better-auth/client/plugins` to infer the `role` type client-side. Use `InferServerPlugin` — `inferAdditionalFields` does not exist in this version and will crash the app.
 - **Middleware:** `requireAuth` calls `auth.api.getSession()` then fetches full user from Prisma (for `role` + `isActive`). `requireAdmin` wraps `requireAuth`.
 - **Route handler:** `app.all('/api/auth/*', toNodeHandler(auth))` — must come **before** `express.json()`
-- **Default admin:** `admin@example.com` / `password123`
+- **Route guards (client):** `RequireAuth` — redirects to `/login` if no session. `RequireAdmin` — additionally checks `session.user.role === 'admin'`, redirects non-admins to `/dashboard`.
+- **Seeded users:** `admin@example.com` / `password123` (admin), `agent@example.com` / `password123` (agent)
 
 **Auth endpoint mapping:**
 
