@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import { Role } from '@prisma/client'
 import prisma from '../lib/prisma'
 import { auth } from '../lib/auth'
 import { requireAdmin } from '../middleware/auth'
@@ -9,7 +10,7 @@ router.use(requireAdmin)
 
 router.get('/', async (_req, res) => {
   const users = await prisma.user.findMany({
-    where: { role: 'agent' },
+    where: { role: Role.agent },
     select: { id: true, name: true, email: true, isActive: true, createdAt: true },
     orderBy: { createdAt: 'desc' },
   })
@@ -34,7 +35,7 @@ router.post('/', async (req, res) => {
 
   await prisma.user.update({
     where: { id: result.user.id },
-    data: { role: 'agent' },
+    data: { role: Role.agent },
   })
 
   res.status(201).json({ id: result.user.id, name, email, isActive: true })

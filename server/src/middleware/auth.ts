@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express'
+import { Role } from '@prisma/client'
 import { fromNodeHeaders } from 'better-auth/node'
 import { auth } from '../lib/auth'
 import prisma from '../lib/prisma'
@@ -25,7 +26,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
 
 export async function requireAdmin(req: Request, res: Response, next: NextFunction) {
   await requireAuth(req, res, async () => {
-    if (res.locals.user?.role !== 'admin') {
+    if (res.locals.user?.role !== Role.admin) {
       res.status(403).json({ error: 'Forbidden' })
       return
     }
