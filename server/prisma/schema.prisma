@@ -22,6 +22,7 @@ model User {
   updatedAt     DateTime  @updatedAt
   role          Role      @default(agent)
   isActive      Boolean   @default(true)
+  deletedAt     DateTime?
 
   sessions        Session[]
   accounts        Account[]

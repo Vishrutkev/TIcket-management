@@ -1,4 +1,14 @@
 import { z } from 'zod'
+import type { Role as PrismaRole } from '@prisma/client'
+
+// Values are derived from Prisma's Role enum.
+// The `satisfies` constraint makes TypeScript error here if the Prisma enum changes.
+export const Role = {
+  admin: 'admin',
+  agent: 'agent',
+} as const satisfies Record<string, PrismaRole>
+
+export type Role = (typeof Role)[keyof typeof Role]
 
 export const createUserSchema = z.object({
   name: z.string().trim().min(1, 'Name is required'),
@@ -14,7 +24,7 @@ export type User = {
   id: string
   name: string
   email: string
-  role: 'admin' | 'agent'
+  role: Role
   isActive: boolean
   createdAt?: string
 }

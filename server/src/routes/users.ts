@@ -17,6 +17,7 @@ const patchUserSchema = z.object({
 
 router.get('/', async (_req, res) => {
   const users = await prisma.user.findMany({
+    where: { deletedAt: null },
     select: { id: true, name: true, email: true, role: true, isActive: true, createdAt: true },
     orderBy: { createdAt: 'desc' },
   })
@@ -31,7 +32,7 @@ router.post('/', async (req, res) => {
   }
   const { name, email, password } = result.data
 
-  const existing = await prisma.user.findUnique({ where: { email } })
+  const existing = await prisma.user.findFirst({ where: { email, deletedAt: null } })
   if (existing) {
     res.status(409).json({ error: 'Email already in use' })
     return
@@ -60,7 +61,7 @@ router.patch('/:id', async (req, res) => {
     return
   }
 
-  const target = await prisma.user.findUnique({ where: { id: req.params.id } })
+  const target = await prisma.user.findFirst({ where: { id: req.params.id, deletedAt: null } })
   if (!target) {
     res.status(404).json({ error: 'User not found' })
     return
@@ -87,7 +88,7 @@ router.put('/:id', async (req, res) => {
   }
   const { name, email, password } = result.data
 
-  const target = await prisma.user.findUnique({ where: { id: req.params.id } })
+  const target = await prisma.user.findFirst({ where: { id: req.params.id, deletedAt: null } })
   if (!target) {
     res.status(404).json({ error: 'User not found' })
     return
@@ -128,17 +129,22 @@ router.delete('/:id', async (req, res) => {
     return
   }
 
-  const target = await prisma.user.findUnique({ where: { id: req.params.id } })
+  const target = await prisma.user.findFirst({
+    where: { id: req.params.id, deletedAt: null },
+  })
   if (!target) {
     res.status(404).json({ error: 'User not found' })
     return
   }
   if (target.role === Role.admin) {
-    res.status(403).json({ error: 'Admin accounts cannot be deleted through this endpoint' })
+    res.status(403).json({ error: 'Admin accounts cannot be deleted' })
     return
   }
 
-  await prisma.user.delete({ where: { id: req.params.id } })
+  await prisma.user.update({
+    where: { id: req.params.id },
+    data: { deletedAt: new Date(), isActive: false },
+  })
   res.json({ ok: true })
 })
 

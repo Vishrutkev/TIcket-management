@@ -15,7 +15,9 @@ export const auth = betterAuth({
   user: {
     additionalFields: {
       // input: false ensures clients cannot self-assign a role during signup.
-      role: { type: 'string', input: false },
+      // defaultValue satisfies Better Auth's required check; the real role is
+      // always set immediately after via prisma.user.update in the route/seed.
+      role: { type: 'string', input: false, defaultValue: 'agent' },
     },
   },
 

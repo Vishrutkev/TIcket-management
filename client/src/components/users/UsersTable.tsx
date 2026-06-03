@@ -1,9 +1,17 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { type User } from '@tm/core'
+import { Role, type User } from '@tm/core'
 import { Pencil } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog'
 import { api } from '@/lib/api'
 import { UserDialog } from './UserDialog'
 
@@ -16,6 +24,7 @@ export function UsersTable({ users, isLoading }: Props) {
   const qc = useQueryClient()
   const [actionError, setActionError] = useState<string | null>(null)
   const [editingUser, setEditingUser] = useState<User | null>(null)
+  const [userToDelete, setUserToDelete] = useState<User | null>(null)
 
   const toggleMutation = useMutation({
     mutationFn: (user: User) =>
@@ -26,15 +35,15 @@ export function UsersTable({ users, isLoading }: Props) {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete<{ ok: true }>(`/users/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }),
-    onError: (err: Error) => setActionError(err.message),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['users'] })
+      setUserToDelete(null)
+    },
+    onError: (err: Error) => {
+      setActionError(err.message)
+      setUserToDelete(null)
+    },
   })
-
-  function handleDelete(user: User) {
-    if (!window.confirm(`Delete ${user.name}? This cannot be undone.`)) return
-    setActionError(null)
-    deleteMutation.mutate(user.id)
-  }
 
   if (isLoading) {
     return (
@@ -101,7 +110,7 @@ export function UsersTable({ users, isLoading }: Props) {
                   <td className="px-4 py-3 text-muted-foreground">{user.email}</td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                      user.role === 'admin'
+                      user.role === Role.admin
                         ? 'bg-purple-100 text-purple-700'
                         : 'bg-blue-100 text-blue-700'
                     }`}>
@@ -135,14 +144,16 @@ export function UsersTable({ users, isLoading }: Props) {
                       >
                         {user.isActive ? 'Deactivate' : 'Activate'}
                       </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        disabled={deleteMutation.isPending}
-                        onClick={() => handleDelete(user)}
-                      >
-                        Delete
-                      </Button>
+                      {user.role !== Role.admin && (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          disabled={deleteMutation.isPending}
+                          onClick={() => { setActionError(null); setUserToDelete(user) }}
+                        >
+                          Delete
+                        </Button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -151,6 +162,35 @@ export function UsersTable({ users, isLoading }: Props) {
           </table>
         </div>
       </div>
+
+      {/* Delete confirmation dialog */}
+      <Dialog open={!!userToDelete} onOpenChange={(open) => { if (!open) setUserToDelete(null) }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Delete user</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete <strong>{userToDelete?.name}</strong>? They will no longer be able to sign in.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setUserToDelete(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              disabled={deleteMutation.isPending}
+              onClick={() => userToDelete && deleteMutation.mutate(userToDelete.id)}
+            >
+              {deleteMutation.isPending ? 'Deleting…' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {editingUser && (
         <UserDialog

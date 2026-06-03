@@ -1,4 +1,5 @@
 import { useNavigate, Link } from 'react-router-dom'
+import { Role } from '@tm/core'
 import { useSession, signOut } from '@/lib/auth-client'
 import { Button } from '@/components/ui/button'
 
@@ -19,7 +20,7 @@ export default function Navbar() {
     <nav className="h-14 border-b bg-card flex items-center justify-between px-6">
       <div className="flex items-center gap-6">
         <Link to="/dashboard" className="font-semibold text-sm tracking-wide hover:opacity-80 transition-opacity">Support Desk</Link>
-        {session?.user.role === 'admin' && (
+        {session?.user.role === Role.admin && (
           <Link to="/users" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
             Users
           </Link>

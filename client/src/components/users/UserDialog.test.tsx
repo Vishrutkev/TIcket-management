@@ -18,6 +18,7 @@ vi.mock('@/lib/auth-client', () => ({
   signOut: vi.fn(),
 }))
 
+import { Role } from '@tm/core'
 import { api } from '@/lib/api'
 const mockApi = api as unknown as {
   post: ReturnType<typeof vi.fn>
@@ -28,7 +29,7 @@ const EXISTING_USER = {
   id: '1',
   name: 'Alice Smith',
   email: 'alice@example.com',
-  role: 'agent' as const,
+  role: Role.agent,
   isActive: true,
 }
 

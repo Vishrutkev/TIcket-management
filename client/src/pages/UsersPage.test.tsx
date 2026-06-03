@@ -259,12 +259,8 @@ describe('toggle active / inactive', () => {
 })
 
 describe('delete user', () => {
-  it('calls DELETE and removes the user row after confirmation', async () => {
-    mockApi.get
-      .mockResolvedValueOnce([AGENT_1, AGENT_2])
-      .mockResolvedValueOnce([AGENT_2])
-    mockApi.delete.mockResolvedValue({ ok: true })
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
+  it('opens a confirmation dialog when Delete is clicked', async () => {
+    mockApi.get.mockResolvedValue([AGENT_1])
 
     const { user } = renderPage(<UsersPage />)
     await screen.findByText('Alice Smith')
@@ -272,20 +268,37 @@ describe('delete user', () => {
     const aliceRow = screen.getByRole('row', { name: /alice smith/i })
     await user.click(within(aliceRow).getByRole('button', { name: /delete/i }))
 
-    await waitFor(() => {
-      expect(mockApi.delete).toHaveBeenCalledWith('/users/1')
-    })
-    await waitFor(() => expect(screen.queryByText('Alice Smith')).toBeNull())
+    expect(screen.getByText('Delete user')).toBeInTheDocument()
+    expect(screen.getByText(/Are you sure you want to delete/i)).toBeInTheDocument()
+    expect(mockApi.delete).not.toHaveBeenCalled()
   })
 
-  it('does not call DELETE when the confirm dialog is cancelled', async () => {
-    mockApi.get.mockResolvedValue([AGENT_1])
-    vi.spyOn(window, 'confirm').mockReturnValue(false)
+  it('calls DELETE and removes the row when confirmed', async () => {
+    mockApi.get
+      .mockResolvedValueOnce([AGENT_1, AGENT_2])
+      .mockResolvedValueOnce([AGENT_2])
+    mockApi.delete.mockResolvedValue({ ok: true })
 
     const { user } = renderPage(<UsersPage />)
     await screen.findByText('Alice Smith')
 
-    await user.click(screen.getByRole('button', { name: /delete/i }))
+    const aliceRow = screen.getByRole('row', { name: /alice smith/i })
+    await user.click(within(aliceRow).getByRole('button', { name: /^delete$/i }))
+    await user.click(screen.getByRole('button', { name: /^delete$/i }))
+
+    await waitFor(() => expect(mockApi.delete).toHaveBeenCalledWith('/users/1'))
+    await waitFor(() => expect(screen.queryByText('Alice Smith')).toBeNull())
+  })
+
+  it('does not call DELETE when the dialog is cancelled', async () => {
+    mockApi.get.mockResolvedValue([AGENT_1])
+
+    const { user } = renderPage(<UsersPage />)
+    await screen.findByText('Alice Smith')
+
+    const aliceRow = screen.getByRole('row', { name: /alice smith/i })
+    await user.click(within(aliceRow).getByRole('button', { name: /delete/i }))
+    await user.click(screen.getByRole('button', { name: /cancel/i }))
 
     expect(mockApi.delete).not.toHaveBeenCalled()
     expect(screen.getByText('Alice Smith')).toBeInTheDocument()
@@ -294,12 +307,13 @@ describe('delete user', () => {
   it('shows an error banner when the delete call fails', async () => {
     mockApi.get.mockResolvedValue([AGENT_1])
     mockApi.delete.mockRejectedValue(new Error('User not found'))
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
 
     const { user } = renderPage(<UsersPage />)
     await screen.findByText('Alice Smith')
 
-    await user.click(screen.getByRole('button', { name: /delete/i }))
+    const aliceRow = screen.getByRole('row', { name: /alice smith/i })
+    await user.click(within(aliceRow).getByRole('button', { name: /^delete$/i }))
+    await user.click(screen.getByRole('button', { name: /^delete$/i }))
 
     await screen.findByText('User not found')
   })
