@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { api } from '@/lib/api'
+import { Skeleton } from '@/components/ui/skeleton'
 
 type User = {
   id: string
@@ -169,7 +170,33 @@ export default function UsersPage() {
         )}
 
         {isLoading ? (
-          <p className="text-sm text-muted-foreground">Loading…</p>
+          <div className="rounded-lg border overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50">
+                <tr>
+                  <th className="text-left px-4 py-3"><Skeleton className="h-4 w-12" /></th>
+                  <th className="text-left px-4 py-3"><Skeleton className="h-4 w-12" /></th>
+                  <th className="text-left px-4 py-3"><Skeleton className="h-4 w-12" /></th>
+                  <th className="px-4 py-3" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <tr key={i} className="bg-card">
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-28" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-44" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-5 w-14 rounded-full" /></td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-end gap-2">
+                        <Skeleton className="h-7 w-20 rounded-md" />
+                        <Skeleton className="h-7 w-14 rounded-md" />
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         ) : loadError ? (
           <p className="text-sm text-destructive">{(loadError as Error).message}</p>
         ) : users.length === 0 ? (

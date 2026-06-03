@@ -18,7 +18,7 @@ export default function Navbar() {
   return (
     <nav className="h-14 border-b bg-card flex items-center justify-between px-6">
       <div className="flex items-center gap-6">
-        <span className="font-semibold text-sm tracking-wide">Support Desk</span>
+        <Link to="/dashboard" className="font-semibold text-sm tracking-wide hover:opacity-80 transition-opacity">Support Desk</Link>
         {session?.user.role === 'admin' && (
           <Link to="/users" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
             Users
