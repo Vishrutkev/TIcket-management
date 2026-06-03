@@ -1,5 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { QueryClientProvider } from '@tanstack/react-query'
 import { useSession } from '@/lib/auth-client'
+import { queryClient } from '@/lib/queryClient'
 import LoginPage from '@/pages/LoginPage'
 import HomePage from '@/pages/HomePage'
 import UsersPage from '@/pages/UsersPage'
@@ -46,6 +48,7 @@ function RequireAdmin({ children }: { children: React.ReactNode }) {
 
 function App() {
   return (
+    <QueryClientProvider client={queryClient}>
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
@@ -64,6 +67,7 @@ function App() {
         <Route path="/knowledge" element={<RequireAuth><div>Knowledge Base</div></RequireAuth>} />
       </Routes>
     </BrowserRouter>
+    </QueryClientProvider>
   )
 }
 

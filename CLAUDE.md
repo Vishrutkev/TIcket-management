@@ -14,6 +14,7 @@ AI-powered support ticket management system. Receives support emails, auto-class
 | Styling    | Tailwind CSS v4 (`@tailwindcss/vite`)             |
 | Components | shadcn/ui (Button, Input, Label, Card)            |
 | Forms      | react-hook-form + zod + @hookform/resolvers       |
+| Data fetching | axios + TanStack Query v5                      |
 | Routing    | React Router v6                                   |
 | Backend    | Node.js, Express 4, TypeScript                    |
 | ORM        | Prisma 5 (PostgreSQL)                             |
@@ -235,6 +236,33 @@ const { register, handleSubmit, setError, formState: { errors, isSubmitting } } 
 
 ---
 
+## Data Fetching
+
+All client-side HTTP uses **axios** + **TanStack Query v5**.
+
+- **Axios instance** — `client/src/lib/api.ts` exports `httpClient` (axios instance with `baseURL`, `withCredentials: true`) and a typed `api` helper (`api.get/post/patch/delete`). The response interceptor extracts the server's `error` field from failed responses and rejects with a plain `Error`.
+- **QueryClient** — singleton in `client/src/lib/queryClient.ts`; mounted via `<QueryClientProvider>` in `App.tsx`.
+- **useQuery** — for all data reads. `queryKey` must be an array, e.g. `['users']`, `['tickets', id]`.
+- **useMutation** — for creates/updates/deletes. Always call `qc.invalidateQueries({ queryKey: [...] })` in `onSuccess` to keep the cache fresh.
+- **mutateAsync + try/catch** — use `mutateAsync` inside react-hook-form `onSubmit` so `isSubmitting` works correctly; catch errors and forward with `setError('root', { message })`.
+- Never use `useEffect` + `useState` for data fetching — use `useQuery` instead.
+
+```ts
+// read
+const { data, isLoading, error } = useQuery({
+  queryKey: ['users'],
+  queryFn: () => api.get<User[]>('/users'),
+})
+
+// write
+const mutation = useMutation({
+  mutationFn: (body: CreateFields) => api.post<User>('/users', body),
+  onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }),
+})
+```
+
+---
+
 ## Coding Conventions
 
 - No default exports except React components and the Express app
@@ -267,3 +295,5 @@ Always use Context7 MCP to fetch current docs before writing code that uses any 
 | Prisma | `Prisma` |
 | Anthropic SDK | `Anthropic SDK` |
 | Resend | `Resend` |
+| TanStack Query | `TanStack Query` |
+| Axios | `Axios` |
