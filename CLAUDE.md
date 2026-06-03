@@ -73,8 +73,13 @@ npm run dev --workspace=client
 # Prisma
 npm run db:generate --workspace=server   # regenerate client after schema changes
 npm run db:migrate --workspace=server    # apply migrations
-npm run db:seed --workspace=server       # seed admin user
+npm run db:seed --workspace=server       # seed admin + agent users
 npm run db:studio --workspace=server     # open Prisma Studio
+
+# E2E tests (Playwright)
+npm run test:e2e           # run all tests headless
+npm run test:e2e:ui        # Playwright UI mode
+npm run test:e2e:report    # open last HTML report
 
 # Add a shadcn component (use temp cache to bypass root-owned npm cache)
 npm_config_cache=/tmp/npm-cache npx shadcn@latest add <component>
@@ -84,8 +89,7 @@ npm_config_cache=/tmp/npm-cache npx shadcn@latest add <component>
 
 ## Environment Variables
 
-All in `server/.env`:
-
+`server/.env`:
 ```
 DATABASE_URL="postgresql://postgres:password@localhost:5432/ticket_management"
 PORT=3000
@@ -93,10 +97,19 @@ CLIENT_URL="http://localhost:5173"
 NODE_ENV=development
 BETTER_AUTH_SECRET=""
 BETTER_AUTH_URL="http://localhost:3000"
+SEED_ADMIN_EMAIL="admin@example.com"
+SEED_ADMIN_PASSWORD="password123"
+SEED_AGENT_EMAIL="agent@example.com"
+SEED_AGENT_PASSWORD=""           # required — separate from admin password
 ANTHROPIC_API_KEY=""
 RESEND_API_KEY=""
 RESEND_FROM_EMAIL="support@yourdomain.com"
 RESEND_INBOUND_DOMAIN="yourdomain.com"
+```
+
+`client/.env.local`:
+```
+VITE_API_URL=http://localhost:3000
 ```
 
 ---
@@ -115,12 +128,14 @@ RESEND_INBOUND_DOMAIN="yourdomain.com"
 
 Better Auth handles all authentication. Sessions are database-backed with an `httpOnly` cookie.
 
-- **Server:** `server/src/lib/auth.ts` — `betterAuth()` with `prismaAdapter`, `emailAndPassword`, and `user.additionalFields` declaring `role` so it is included in the session payload
-- **Client:** `client/src/lib/auth-client.ts` — `createAuthClient` with `InferServerPlugin<typeof auth>()` from `better-auth/client/plugins` to infer the `role` type client-side. Use `InferServerPlugin` — `inferAdditionalFields` does not exist in this version and will crash the app.
+- **Server:** `server/src/lib/auth.ts` — `betterAuth()` with `prismaAdapter`, `emailAndPassword: { disableSignUp: true }`, `user.additionalFields` declaring `role`, explicit `SameSite: lax` / `secure: isProd` cookies, rate limiting production-only (`enabled: isProd`)
+- **Client:** `client/src/lib/auth-client.ts` — `createAuthClient` with `InferServerPlugin<typeof auth>()` from `better-auth/client/plugins`. Use `InferServerPlugin` — `inferAdditionalFields` does not exist in this version and will crash the app. `baseURL` reads from `VITE_API_URL`.
 - **Middleware:** `requireAuth` calls `auth.api.getSession()` then fetches full user from Prisma (for `role` + `isActive`). `requireAdmin` wraps `requireAuth`.
 - **Route handler:** `app.all('/api/auth/*', toNodeHandler(auth))` — must come **before** `express.json()`
+- **Rate limiting:** `express-rate-limit` on `/api/auth/sign-in` — **production only** (`NODE_ENV === 'production'`)
 - **Route guards (client):** `RequireAuth` — redirects to `/login` if no session. `RequireAdmin` — additionally checks `session.user.role === 'admin'`, redirects non-admins to `/dashboard`.
-- **Seeded users:** `admin@example.com` / `password123` (admin), `agent@example.com` / `password123` (agent)
+- **Login redirect:** `LoginPage` uses `useSession()` and returns `<Navigate to="/dashboard" replace />` when session is set — avoids race condition where `navigate()` fires before session store updates after sign-in.
+- **Seeded users:** `admin@example.com` / `password123` (admin), `agent@example.com` / `SEED_AGENT_PASSWORD` (agent)
 
 **Auth endpoint mapping:**
 
@@ -129,6 +144,22 @@ Better Auth handles all authentication. Sessions are database-backed with an `ht
 | `POST /api/auth/login` | `POST /api/auth/sign-in/email` |
 | `POST /api/auth/logout` | `POST /api/auth/sign-out` |
 | `GET /api/auth/me` | `GET /api/auth/get-session` |
+
+---
+
+## E2E Testing (Playwright)
+
+Tests live in `e2e/` at the repo root. Playwright uses isolated ports and a dedicated database so tests can run alongside the dev server.
+
+| | Dev | Test |
+|--|-----|------|
+| Server port | 3000 | 3001 |
+| Client port | 5173 | 5174 |
+| Database | `ticketmanagement` | `ticketmanagement_test` |
+
+- `playwright.config.ts` — config at repo root; Chromium only; `webServer` starts both servers automatically with test env vars injected inline (no `.env.test` file needed)
+- `e2e/global-setup.ts` — creates test DB if missing, runs `prisma migrate deploy`, seeds users
+- All test env vars (DB URL, Better Auth secret, seed credentials) are declared in `playwright.config.ts`
 
 ---
 

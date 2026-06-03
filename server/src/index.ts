@@ -14,16 +14,17 @@ const PORT = process.env.PORT || 3000
 // Never hardcode a port here — a mismatch silently trusts the wrong origin.
 app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:5173', credentials: true }))
 
-// Rate-limit sign-in attempts before the auth handler sees the request.
-// 10 attempts per 15-minute window per IP is a reasonable starting point.
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Too many login attempts, please try again later' },
-})
-app.use('/api/auth/sign-in', authLimiter)
+// Rate-limit sign-in attempts in production only — keep dev/test unrestricted.
+if (process.env.NODE_ENV === 'production') {
+  const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many login attempts, please try again later' },
+  })
+  app.use('/api/auth/sign-in', authLimiter)
+}
 
 // Better Auth handler must come before express.json()
 app.all('/api/auth/*', toNodeHandler(auth))

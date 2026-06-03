@@ -7,8 +7,8 @@ const isProd = process.env.NODE_ENV === 'production'
 export const auth = betterAuth({
   database: prismaAdapter(prisma, { provider: 'postgresql' }),
 
-  // Disable public self-registration — agents are created only by admins via POST /api/users.
-  emailAndPassword: { enabled: true, disableSignUp: true },
+  // Public self-registration disabled in production — agents are created only by admins via POST /api/users.
+  emailAndPassword: { enabled: true, disableSignUp: isProd },
 
   trustedOrigins: [process.env.CLIENT_URL || 'http://localhost:5173'],
 
@@ -19,13 +19,10 @@ export const auth = betterAuth({
     },
   },
 
-  // Better Auth's built-in rate limiting — second layer behind express-rate-limit.
-  // Operates per-path and uses in-process memory by default; switch to
-  // "database" or "secondary-storage" in a multi-instance deployment.
   rateLimit: {
-    enabled: true,
-    window: 60 * 60,   // seconds
-    max: 20,      // requests per window per IP on auth endpoints
+    enabled: isProd,
+    window: 15 * 60 * 1000,
+    max: 20,
   },
 
   advanced: {
