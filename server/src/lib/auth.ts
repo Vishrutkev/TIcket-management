@@ -24,8 +24,8 @@ export const auth = betterAuth({
   // "database" or "secondary-storage" in a multi-instance deployment.
   rateLimit: {
     enabled: true,
-    window: 60,   // seconds
-    max: 10,      // requests per window per IP on auth endpoints
+    window: 60 * 60,   // seconds
+    max: 20,      // requests per window per IP on auth endpoints
   },
 
   advanced: {

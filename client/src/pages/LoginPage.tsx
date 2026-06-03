@@ -1,8 +1,8 @@
-import { useNavigate } from 'react-router-dom'
+import { Navigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { signIn } from '@/lib/auth-client'
+import { signIn, useSession } from '@/lib/auth-client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -16,7 +16,7 @@ const loginSchema = z.object({
 type LoginFields = z.infer<typeof loginSchema>
 
 export default function LoginPage() {
-  const navigate = useNavigate()
+  const { data: session } = useSession()
 
   const {
     register,
@@ -25,15 +25,16 @@ export default function LoginPage() {
     formState: { errors, isSubmitting },
   } = useForm<LoginFields>({ resolver: zodResolver(loginSchema) })
 
+  if (session) {
+    return <Navigate to="/dashboard" replace />
+  }
+
   async function onSubmit(data: LoginFields) {
     const result = await signIn.email({ email: data.email, password: data.password })
 
     if (result.error) {
       setError('root', { message: result.error.message ?? 'Invalid email or password' })
-      return
     }
-
-    navigate('/dashboard', { replace: true })
   }
 
   return (
