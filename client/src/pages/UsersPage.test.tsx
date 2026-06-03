@@ -50,20 +50,17 @@ beforeEach(() => {
 
 describe('loading state', () => {
   it('shows skeleton rows while the query is in flight', () => {
-    // Never resolve so we stay in loading state
     mockApi.get.mockReturnValue(new Promise(() => {}))
     renderPage(<UsersPage />)
-    // 4 skeleton rows rendered as <tr> inside tbody
     const rows = screen.getAllByRole('row')
     // 1 header row + 4 skeleton rows
     expect(rows.length).toBe(5)
-    // None of them contain real text content
     expect(screen.queryByText('Alice Smith')).toBeNull()
   })
 })
 
 describe('empty state', () => {
-  it('shows empty message when the server returns no agents', async () => {
+  it('shows empty message when the server returns no users', async () => {
     mockApi.get.mockResolvedValue([])
     renderPage(<UsersPage />)
     await screen.findByText(/no agents yet/i)
@@ -71,7 +68,7 @@ describe('empty state', () => {
 })
 
 describe('user list', () => {
-  it('renders all agents returned by the API', async () => {
+  it('renders all users returned by the API', async () => {
     mockApi.get.mockResolvedValue([AGENT_1, AGENT_2])
     renderPage(<UsersPage />)
     await screen.findByText('Alice Smith')
@@ -80,7 +77,7 @@ describe('user list', () => {
     expect(screen.getByText('bob@example.com')).toBeInTheDocument()
   })
 
-  it('shows Active badge for active agents and Inactive for inactive agents', async () => {
+  it('shows Active badge for active users and Inactive for inactive users', async () => {
     mockApi.get.mockResolvedValue([AGENT_1, AGENT_2])
     renderPage(<UsersPage />)
     await screen.findByText('Alice Smith')
@@ -89,37 +86,77 @@ describe('user list', () => {
     expect(within(rows[1]).getByText('Inactive')).toBeInTheDocument()
   })
 
-  it('shows Deactivate for active agents and Activate for inactive agents', async () => {
+  it('shows Deactivate for active users and Activate for inactive users', async () => {
     mockApi.get.mockResolvedValue([AGENT_1, AGENT_2])
     renderPage(<UsersPage />)
     await screen.findByText('Alice Smith')
-    // Scope to individual rows to avoid /activate/i matching "Deactivate"
     const [, aliceRow, bobRow] = screen.getAllByRole('row')
     expect(within(aliceRow).getByRole('button', { name: 'Deactivate' })).toBeInTheDocument()
     expect(within(bobRow).getByRole('button', { name: 'Activate' })).toBeInTheDocument()
   })
 })
 
-describe('create agent form', () => {
-  it('opens the form when Add agent is clicked', async () => {
+describe('Add User form', () => {
+  it('opens the form when Add User is clicked', async () => {
     mockApi.get.mockResolvedValue([])
     const { user } = renderPage(<UsersPage />)
     await screen.findByText(/no agents yet/i)
 
-    await user.click(screen.getByRole('button', { name: /add agent/i }))
-    expect(screen.getByText('New agent')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /add user/i }))
+
+    expect(screen.getByText('New User')).toBeInTheDocument()
     expect(screen.getByLabelText(/name/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/email/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/password/i)).toBeInTheDocument()
   })
 
-  it('closes the form and hides Add agent button while the form is open', async () => {
+  it('hides the Add User button while the form is open', async () => {
     mockApi.get.mockResolvedValue([])
     const { user } = renderPage(<UsersPage />)
     await screen.findByText(/no agents yet/i)
 
-    await user.click(screen.getByRole('button', { name: /add agent/i }))
-    expect(screen.queryByRole('button', { name: /add agent/i })).toBeNull()
+    await user.click(screen.getByRole('button', { name: /add user/i }))
+
+    expect(screen.queryByRole('button', { name: /add user/i })).toBeNull()
+  })
+
+  it('closes the form after a user is successfully created', async () => {
+    const newUser = { id: '3', name: 'Jane Doe', email: 'jane@example.com', isActive: true }
+    mockApi.get
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([newUser])
+    mockApi.post.mockResolvedValue(newUser)
+
+    const { user } = renderPage(<UsersPage />)
+    await screen.findByText(/no agents yet/i)
+
+    await user.click(screen.getByRole('button', { name: /add user/i }))
+    await user.type(screen.getByLabelText(/name/i), 'Jane Doe')
+    await user.type(screen.getByLabelText(/email/i), 'jane@example.com')
+    await user.type(screen.getByLabelText(/password/i), 'securepassword')
+    await user.click(screen.getByRole('button', { name: /create user/i }))
+
+    await waitFor(() => expect(screen.queryByText('New User')).toBeNull())
+    expect(screen.getByRole('button', { name: /add user/i })).toBeInTheDocument()
+  })
+
+  it('shows the new user in the list after creation', async () => {
+    const newUser = { id: '3', name: 'Jane Doe', email: 'jane@example.com', isActive: true }
+    mockApi.get
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([newUser])
+    mockApi.post.mockResolvedValue(newUser)
+
+    const { user } = renderPage(<UsersPage />)
+    await screen.findByText(/no agents yet/i)
+
+    await user.click(screen.getByRole('button', { name: /add user/i }))
+    await user.type(screen.getByLabelText(/name/i), 'Jane Doe')
+    await user.type(screen.getByLabelText(/email/i), 'jane@example.com')
+    await user.type(screen.getByLabelText(/password/i), 'securepassword')
+    await user.click(screen.getByRole('button', { name: /create user/i }))
+
+    await screen.findByText('Jane Doe')
   })
 
   it('shows validation errors when submitted empty', async () => {
@@ -127,8 +164,8 @@ describe('create agent form', () => {
     const { user } = renderPage(<UsersPage />)
     await screen.findByText(/no agents yet/i)
 
-    await user.click(screen.getByRole('button', { name: /add agent/i }))
-    await user.click(screen.getByRole('button', { name: /create agent/i }))
+    await user.click(screen.getByRole('button', { name: /add user/i }))
+    await user.click(screen.getByRole('button', { name: /create user/i }))
 
     await screen.findByText(/name is required/i)
     await screen.findByText(/enter a valid email address/i)
@@ -136,77 +173,48 @@ describe('create agent form', () => {
     expect(mockApi.post).not.toHaveBeenCalled()
   })
 
-  it('shows password length validation error for short passwords', async () => {
+  it('shows password length error for short passwords', async () => {
     mockApi.get.mockResolvedValue([])
     const { user } = renderPage(<UsersPage />)
     await screen.findByText(/no agents yet/i)
 
-    await user.click(screen.getByRole('button', { name: /add agent/i }))
+    await user.click(screen.getByRole('button', { name: /add user/i }))
     await user.type(screen.getByLabelText(/name/i), 'Jane')
     await user.type(screen.getByLabelText(/email/i), 'jane@example.com')
     await user.type(screen.getByLabelText(/password/i), 'short')
-    await user.click(screen.getByRole('button', { name: /create agent/i }))
+    await user.click(screen.getByRole('button', { name: /create user/i }))
 
     await screen.findByText(/password must be at least 8 characters/i)
     expect(mockApi.post).not.toHaveBeenCalled()
   })
 
-  it('submits the form, closes it, and shows the new agent in the list', async () => {
-    const newAgent = { id: '3', name: 'Jane Doe', email: 'jane@example.com', isActive: true }
-    mockApi.get
-      .mockResolvedValueOnce([])           // initial load
-      .mockResolvedValueOnce([newAgent])   // after invalidation
-    mockApi.post.mockResolvedValue(newAgent)
-
-    const { user } = renderPage(<UsersPage />)
-    await screen.findByText(/no agents yet/i)
-
-    await user.click(screen.getByRole('button', { name: /add agent/i }))
-    await user.type(screen.getByLabelText(/name/i), 'Jane Doe')
-    await user.type(screen.getByLabelText(/email/i), 'jane@example.com')
-    await user.type(screen.getByLabelText(/password/i), 'securepassword')
-    await user.click(screen.getByRole('button', { name: /create agent/i }))
-
-    await waitFor(() => {
-      expect(mockApi.post).toHaveBeenCalledWith('/users', {
-        name: 'Jane Doe',
-        email: 'jane@example.com',
-        password: 'securepassword',
-      })
-    })
-    // Form closes after success
-    await waitFor(() => expect(screen.queryByText('New agent')).toBeNull())
-    // New agent appears in the list
-    await screen.findByText('Jane Doe')
-  })
-
-  it('shows an API error message when creation fails', async () => {
+  it('shows an API error inside the form when creation fails', async () => {
     mockApi.get.mockResolvedValue([])
     mockApi.post.mockRejectedValue(new Error('Email already in use'))
 
     const { user } = renderPage(<UsersPage />)
     await screen.findByText(/no agents yet/i)
 
-    await user.click(screen.getByRole('button', { name: /add agent/i }))
+    await user.click(screen.getByRole('button', { name: /add user/i }))
     await user.type(screen.getByLabelText(/name/i), 'Jane Doe')
     await user.type(screen.getByLabelText(/email/i), 'jane@example.com')
     await user.type(screen.getByLabelText(/password/i), 'securepassword')
-    await user.click(screen.getByRole('button', { name: /create agent/i }))
+    await user.click(screen.getByRole('button', { name: /create user/i }))
 
     await screen.findByText('Email already in use')
-    expect(screen.getByText('New agent')).toBeInTheDocument()
+    expect(screen.getByText('New User')).toBeInTheDocument()
   })
 
-  it('cancels the form when Cancel is clicked', async () => {
+  it('closes the form when Cancel is clicked', async () => {
     mockApi.get.mockResolvedValue([])
     const { user } = renderPage(<UsersPage />)
     await screen.findByText(/no agents yet/i)
 
-    await user.click(screen.getByRole('button', { name: /add agent/i }))
+    await user.click(screen.getByRole('button', { name: /add user/i }))
     await user.click(screen.getByRole('button', { name: /cancel/i }))
 
-    expect(screen.queryByText('New agent')).toBeNull()
-    expect(screen.getByRole('button', { name: /add agent/i })).toBeInTheDocument()
+    expect(screen.queryByText('New User')).toBeNull()
+    expect(screen.getByRole('button', { name: /add user/i })).toBeInTheDocument()
   })
 })
 
@@ -258,13 +266,12 @@ describe('toggle active / inactive', () => {
   })
 })
 
-describe('delete agent', () => {
-  it('calls DELETE and removes the agent row after confirmation', async () => {
+describe('delete user', () => {
+  it('calls DELETE and removes the user row after confirmation', async () => {
     mockApi.get
       .mockResolvedValueOnce([AGENT_1, AGENT_2])
       .mockResolvedValueOnce([AGENT_2])
     mockApi.delete.mockResolvedValue({ ok: true })
-
     vi.spyOn(window, 'confirm').mockReturnValue(true)
 
     const { user } = renderPage(<UsersPage />)

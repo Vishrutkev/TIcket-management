@@ -27,7 +27,7 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 // Better Auth handler must come before express.json()
-app.all('/api/auth/*', toNodeHandler(auth))
+app.all('/api/auth/*path', toNodeHandler(auth))
 
 app.use(express.json())
 

@@ -16,7 +16,7 @@ AI-powered support ticket management system. Receives support emails, auto-class
 | Forms      | react-hook-form + zod + @hookform/resolvers       |
 | Data fetching | axios + TanStack Query v5                      |
 | Routing    | React Router v6                                   |
-| Backend    | Node.js, Express 4, TypeScript                    |
+| Backend    | Node.js, Express 5, TypeScript                    |
 | ORM        | Prisma 5 (PostgreSQL)                             |
 | Auth       | Better Auth (email/password, database sessions)   |
 | AI         | Anthropic Claude API (`@anthropic-ai/sdk`)        |
@@ -28,12 +28,20 @@ AI-powered support ticket management system. Receives support emails, auto-class
 
 ```
 ticket-management/
+├── core/                     # Shared TypeScript package (@tm/core)
+│   └── src/
+│       ├── schemas/
+│       │   └── users.ts      # createUserSchema, CreateUserFields, User type
+│       └── index.ts          # Barrel export
 ├── client/                   # Vite + React frontend (port 5173)
 │   ├── components.json       # shadcn config
 │   ├── vite.config.ts        # uses @tailwindcss/vite plugin
 │   └── src/
 │       ├── components/
 │       │   ├── ui/           # shadcn components (Button, Input, Label, Card)
+│       │   ├── users/
+│       │   │   ├── CreateUserForm.tsx  # create-agent form card (manages its own mutation)
+│       │   │   └── UsersTable.tsx      # users table + loading skeleton + toggle/delete mutations
 │       │   └── Navbar.tsx    # top nav with user name + sign out
 │       ├── pages/
 │       │   ├── LoginPage.tsx # email/password login form
@@ -243,7 +251,33 @@ Tailwind v4 uses a Vite plugin instead of PostCSS — there is no `tailwind.conf
 
 ---
 
-## Form Pattern (react-hook-form + zod)
+## Shared Schemas (`@tm/core`)
+
+Any zod schema **or TypeScript type** that is used by both client and server **must** live in `core/src/schemas/` and be exported from `core/src/index.ts`. Import it in both places as `import { ... } from '@tm/core'`.
+
+- Add the schema file under `core/src/schemas/<domain>.ts`
+- Re-export it from `core/src/index.ts`
+- Both `client/tsconfig.json` and `server/tsconfig.json` have `paths` entries pointing `@tm/core` at `../core/src/index.ts`
+- Never duplicate a schema or type — if a shape is used on both sides, it belongs in `core`
+- API response types (e.g. `User`) belong in `core` alongside their validation schemas
+
+```ts
+// core/src/schemas/users.ts
+export const createUserSchema = z.object({ ... })
+export type CreateUserFields = z.infer<typeof createUserSchema>
+export type User = { id: string; name: string; email: string; role: 'admin' | 'agent'; isActive: boolean }
+
+// server/src/routes/users.ts  and  client/src/pages/UsersPage.tsx
+import { createUserSchema, type CreateUserFields, type User } from '@tm/core'
+```
+
+---
+
+## Data Validation
+
+**Always use zod for all data validation** — both on the client (forms) and the server (request bodies). Never trust incoming data without parsing it through a zod schema first.
+
+### Client — react-hook-form + zod
 
 ```tsx
 const schema = z.object({ email: z.string().email(), password: z.string().min(1) })
@@ -256,6 +290,34 @@ const { register, handleSubmit, setError, formState: { errors, isSubmitting } } 
 - Always add `noValidate` to `<form>` to disable browser-native validation
 - Inline field errors via `errors.fieldName.message`
 - API errors via `setError('root', { message: '...' })` → `errors.root.message`
+
+### Server — Express route handlers
+
+Parse and validate `req.body` with a zod schema at the top of every mutating route handler. Return `400` on failure.
+
+```ts
+import { z } from 'zod'
+
+const createUserSchema = z.object({
+  name: z.string().min(1),
+  email: z.string().email(),
+  password: z.string().min(8),
+  role: z.enum(['admin', 'agent']),
+})
+
+router.post('/users', requireAdmin, async (req, res) => {
+  const result = createUserSchema.safeParse(req.body)
+  if (!result.success) {
+    return res.status(400).json({ error: result.error.issues[0].message })
+  }
+  const { name, email, password, role } = result.data
+  // …
+})
+```
+
+- Use `safeParse` (not `parse`) so validation errors don't throw unhandled exceptions
+- Return the first issue message via `result.error.issues[0].message` for a consistent client-facing error shape
+- Derive the TypeScript type with `z.infer<typeof schema>` — never write a separate interface
 
 ---
 
@@ -313,6 +375,8 @@ const mutation = useMutation({
 
 ## Coding Conventions
 
+- **No try/catch in route handlers** — Express 5 automatically forwards rejected async promises to the global error handler in `index.ts`. Never wrap route logic in try/catch; just `await` directly.
+- **Express 5 wildcard routes** — Express 5 requires named wildcards. Use `/api/auth/*path` not `/api/auth/*` — the bare `*` throws a `PathError` at startup.
 - No default exports except React components and the Express app
 - All API calls from the client go through `client/src/lib/api.ts`
 - All Prisma queries go through `server/src/lib/prisma.ts` singleton
