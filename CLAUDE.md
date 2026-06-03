@@ -161,6 +161,18 @@ Tests live in `e2e/` at the repo root. Playwright uses isolated ports and a dedi
 - `e2e/global-setup.ts` — creates test DB if missing, runs `prisma migrate deploy`, seeds users
 - All test env vars (DB URL, Better Auth secret, seed credentials) are declared in `playwright.config.ts`
 
+### Writing E2E Tests
+
+Always use the **`e2e-test-writer` agent** to write or expand Playwright tests — never write them inline.
+
+Trigger it after completing any new page or feature:
+
+```
+Use the e2e-test-writer agent to write tests for <feature/page>
+```
+
+The agent knows the project's test setup (ports, DB, seed credentials, global-setup) and will produce correctly structured tests in `e2e/`.
+
 ---
 
 ## Tailwind CSS v4 Setup
