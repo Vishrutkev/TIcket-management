@@ -1,38 +1,56 @@
+import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { createUserSchema, type CreateUserFields, type User } from '@tm/core'
+import { createUserSchema, editUserSchema, type EditUserFields, type User } from '@tm/core'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { api } from '@/lib/api'
 
 type Props = {
-  onSuccess: () => void
-  onCancel: () => void
+  open: boolean
+  user?: User
+  onClose: () => void
 }
 
-export function CreateUserForm({ onSuccess, onCancel }: Props) {
+export function UserDialog({ open, user, onClose }: Props) {
+  const isEdit = !!user
   const qc = useQueryClient()
+
   const {
     register,
     handleSubmit,
     reset,
     setError,
     formState: { errors, isSubmitting },
-  } = useForm<CreateUserFields>({ resolver: zodResolver(createUserSchema) })
+  } = useForm<EditUserFields>({ resolver: zodResolver(user ? editUserSchema : createUserSchema) })
+
+  useEffect(() => {
+    if (open) {
+      reset({ name: user?.name ?? '', email: user?.email ?? '', password: '' })
+    }
+  }, [open, user, reset])
 
   const mutation = useMutation({
-    mutationFn: (body: CreateUserFields) => api.post<User>('/users', body),
+    mutationFn: (data: EditUserFields) =>
+      isEdit
+        ? api.put<User>(`/users/${user.id}`, { name: data.name, email: data.email, password: data.password })
+        : api.post<User>('/users', { name: data.name, email: data.email, password: data.password }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['users'] })
       reset()
-      onSuccess()
+      onClose()
     },
   })
 
-  async function onSubmit(data: CreateUserFields) {
+  async function onSubmit(data: EditUserFields) {
     try {
       await mutation.mutateAsync(data)
     } catch (err) {
@@ -40,18 +58,23 @@ export function CreateUserForm({ onSuccess, onCancel }: Props) {
     }
   }
 
+  function handleClose() {
+    reset()
+    onClose()
+  }
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">New User</CardTitle>
-      </CardHeader>
-      <CardContent>
+    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) handleClose() }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{isEdit ? 'Edit User' : 'New User'}</DialogTitle>
+        </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
-              <Label htmlFor="name">Name</Label>
+              <Label htmlFor="ud-name">Name</Label>
               <Input
-                id="name"
+                id="ud-name"
                 placeholder="Jane Smith"
                 {...register('name')}
                 aria-invalid={!!errors.name}
@@ -61,9 +84,9 @@ export function CreateUserForm({ onSuccess, onCancel }: Props) {
               )}
             </div>
             <div className="space-y-1">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="ud-email">Email</Label>
               <Input
-                id="email"
+                id="ud-email"
                 type="email"
                 placeholder="jane@example.com"
                 {...register('email')}
@@ -75,11 +98,11 @@ export function CreateUserForm({ onSuccess, onCancel }: Props) {
             </div>
           </div>
           <div className="space-y-1">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="ud-password">Password</Label>
             <Input
-              id="password"
+              id="ud-password"
               type="password"
-              placeholder="••••••••"
+              placeholder={isEdit ? 'Leave blank to keep current password' : '••••••••'}
               {...register('password')}
               aria-invalid={!!errors.password}
             />
@@ -93,20 +116,17 @@ export function CreateUserForm({ onSuccess, onCancel }: Props) {
             </p>
           )}
           <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => { reset(); onCancel() }}
-            >
+            <Button type="button" variant="outline" size="sm" onClick={handleClose}>
               Cancel
             </Button>
             <Button type="submit" size="sm" disabled={isSubmitting}>
-              {isSubmitting ? 'Creating…' : 'Create User'}
+              {isSubmitting
+                ? (isEdit ? 'Saving…' : 'Creating…')
+                : (isEdit ? 'Save changes' : 'Create User')}
             </Button>
           </div>
         </form>
-      </CardContent>
-    </Card>
+      </DialogContent>
+    </Dialog>
   )
 }

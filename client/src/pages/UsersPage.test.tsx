@@ -11,6 +11,7 @@ vi.mock('@/lib/api', () => ({
   api: {
     get: vi.fn(),
     post: vi.fn(),
+    put: vi.fn(),
     patch: vi.fn(),
     delete: vi.fn(),
   },
@@ -26,9 +27,10 @@ vi.mock('@/lib/auth-client', () => ({
 
 import { api } from '@/lib/api'
 
-const mockApi = api as {
+const mockApi = api as unknown as {
   get: ReturnType<typeof vi.fn>
   post: ReturnType<typeof vi.fn>
+  put: ReturnType<typeof vi.fn>
   patch: ReturnType<typeof vi.fn>
   delete: ReturnType<typeof vi.fn>
 }
@@ -110,16 +112,6 @@ describe('Add User form', () => {
     expect(screen.getByLabelText(/password/i)).toBeInTheDocument()
   })
 
-  it('hides the Add User button while the form is open', async () => {
-    mockApi.get.mockResolvedValue([])
-    const { user } = renderPage(<UsersPage />)
-    await screen.findByText(/no agents yet/i)
-
-    await user.click(screen.getByRole('button', { name: /add user/i }))
-
-    expect(screen.queryByRole('button', { name: /add user/i })).toBeNull()
-  })
-
   it('closes the form after a user is successfully created', async () => {
     const newUser = { id: '3', name: 'Jane Doe', email: 'jane@example.com', isActive: true }
     mockApi.get
@@ -169,7 +161,7 @@ describe('Add User form', () => {
 
     await screen.findByText(/name is required/i)
     await screen.findByText(/enter a valid email address/i)
-    await screen.findByText(/password must be at least 8 characters/i)
+    await screen.findByText(/password is required/i)
     expect(mockApi.post).not.toHaveBeenCalled()
   })
 

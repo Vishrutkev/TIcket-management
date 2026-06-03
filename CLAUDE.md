@@ -40,8 +40,9 @@ ticket-management/
 │       ├── components/
 │       │   ├── ui/           # shadcn components (Button, Input, Label, Card)
 │       │   ├── users/
-│       │   │   ├── CreateUserForm.tsx  # create-agent form card (manages its own mutation)
-│       │   │   └── UsersTable.tsx      # users table + loading skeleton + toggle/delete mutations
+│       │   │   ├── CreateUserForm.tsx  # create-user form card (manages its own mutation)
+│       │   │   ├── EditUserDialog.tsx  # edit-user dialog (pre-populated; optional password change)
+│       │   │   └── UsersTable.tsx      # users table + loading skeleton + edit/toggle/delete
 │       │   └── Navbar.tsx    # top nav with user name + sign out
 │       ├── pages/
 │       │   ├── LoginPage.tsx # email/password login form
@@ -333,6 +334,7 @@ router.post('/users', requireAdmin, async (req, res) => {
 | PATCH | `/api/tickets/:id` | user | Update status / assignee |
 | GET | `/api/users` | admin | List agents |
 | POST | `/api/users` | admin | Create agent |
+| PUT | `/api/users/:id` | admin | Edit user name, email, and optionally password |
 | PATCH | `/api/users/:id` | admin | Activate/deactivate agent |
 | DELETE | `/api/users/:id` | admin | Delete agent |
 

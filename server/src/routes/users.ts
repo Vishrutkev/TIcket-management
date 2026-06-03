@@ -1,7 +1,8 @@
 import { Router } from 'express'
 import { z } from 'zod'
+import { hashPassword } from 'better-auth/crypto'
 import { Role } from '@prisma/client'
-import { createUserSchema } from '@tm/core'
+import { createUserSchema, editUserSchema } from '@tm/core'
 import prisma from '../lib/prisma'
 import { auth } from '../lib/auth'
 import { requireAdmin } from '../middleware/auth'
@@ -74,6 +75,49 @@ router.patch('/:id', async (req, res) => {
     data: { isActive },
     select: { id: true, name: true, email: true, isActive: true },
   })
+
+  res.json(user)
+})
+
+router.put('/:id', async (req, res) => {
+  const result = editUserSchema.safeParse(req.body)
+  if (!result.success) {
+    res.status(400).json({ error: result.error.issues[0].message })
+    return
+  }
+  const { name, email, password } = result.data
+
+  const target = await prisma.user.findUnique({ where: { id: req.params.id } })
+  if (!target) {
+    res.status(404).json({ error: 'User not found' })
+    return
+  }
+  if (target.role === Role.admin) {
+    res.status(403).json({ error: 'Admin accounts cannot be modified through this endpoint' })
+    return
+  }
+
+  if (email !== target.email) {
+    const conflict = await prisma.user.findUnique({ where: { email } })
+    if (conflict) {
+      res.status(409).json({ error: 'Email already in use' })
+      return
+    }
+  }
+
+  const user = await prisma.user.update({
+    where: { id: req.params.id },
+    data: { name, email },
+    select: { id: true, name: true, email: true, role: true, isActive: true },
+  })
+
+  if (password) {
+    const hash = await hashPassword(password)
+    await prisma.account.updateMany({
+      where: { userId: req.params.id, providerId: 'credential' },
+      data: { password: hash },
+    })
+  }
 
   res.json(user)
 })
