@@ -148,6 +148,54 @@ Better Auth handles all authentication. Sessions are database-backed with an `ht
 
 ---
 
+## Component Testing (Vitest + React Testing Library)
+
+Component tests live in `client/src/` alongside the files they test, named `*.test.tsx`.
+
+### Running tests
+
+```bash
+npm run test:components --workspace=client        # run once (CI)
+npm run test:components:watch --workspace=client  # watch mode (dev)
+```
+
+### Infrastructure
+
+| File | Purpose |
+|------|---------|
+| `client/src/test/setup.ts` | Imports `@testing-library/jest-dom` matchers — runs before every test file |
+| `client/src/test/renderPage.tsx` | Shared render helper: wraps a component in `QueryClientProvider` + `MemoryRouter`, returns `{ user, qc }` |
+| `client/vite.config.ts` | `test: { environment: 'jsdom', setupFiles, globals: true }` |
+
+### Writing tests
+
+- Import `renderPage` from `@/test/renderPage` and pass the component as JSX: `renderPage(<UsersPage />)`
+- Mock `@/lib/api` with `vi.mock` — return resolved/rejected promises from `mockApi.get/post/patch/delete`
+- Mock `@/lib/auth-client` with `vi.mock` — stub `useSession` to return a session object so `Navbar` renders without errors
+- Use `userEvent.setup()` (already wired in `renderPage`) — always destructure `user` from the return value
+- Prefer `screen.findBy*` (async) over `getBy*` after any state change or API call
+- Scope assertions to a specific row with `within(row).getBy*` to avoid ambiguous multi-match errors — e.g. `/activate/i` matches both "Activate" and "Deactivate"
+- Call `vi.clearAllMocks()` in `beforeEach`
+
+```tsx
+// Minimal example
+vi.mock('@/lib/api', () => ({ api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), delete: vi.fn() } }))
+vi.mock('@/lib/auth-client', () => ({
+  useSession: () => ({ data: { user: { name: 'Admin', role: 'admin' } }, isPending: false }),
+  signOut: vi.fn(),
+}))
+import { api } from '@/lib/api'
+const mockApi = api as { get: ReturnType<typeof vi.fn>; /* … */ }
+
+it('renders the list', async () => {
+  mockApi.get.mockResolvedValue([{ id: '1', name: 'Alice', email: 'a@example.com', role: 'agent', isActive: true }])
+  const { user } = renderPage(<UsersPage />)
+  await screen.findByText('Alice')
+})
+```
+
+---
+
 ## E2E Testing (Playwright)
 
 Tests live in `e2e/` at the repo root. Playwright uses isolated ports and a dedicated database so tests can run alongside the dev server.

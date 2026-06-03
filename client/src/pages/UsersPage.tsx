@@ -15,6 +15,7 @@ type User = {
   id: string
   name: string
   email: string
+  role: 'admin' | 'agent'
   isActive: boolean
   createdAt?: string
 }
@@ -177,6 +178,7 @@ export default function UsersPage() {
                   <th className="text-left px-4 py-3"><Skeleton className="h-4 w-12" /></th>
                   <th className="text-left px-4 py-3"><Skeleton className="h-4 w-12" /></th>
                   <th className="text-left px-4 py-3"><Skeleton className="h-4 w-12" /></th>
+                  <th className="text-left px-4 py-3"><Skeleton className="h-4 w-12" /></th>
                   <th className="px-4 py-3" />
                 </tr>
               </thead>
@@ -185,6 +187,7 @@ export default function UsersPage() {
                   <tr key={i} className="bg-card">
                     <td className="px-4 py-3"><Skeleton className="h-4 w-28" /></td>
                     <td className="px-4 py-3"><Skeleton className="h-4 w-44" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-5 w-12 rounded-full" /></td>
                     <td className="px-4 py-3"><Skeleton className="h-5 w-14 rounded-full" /></td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-2">
@@ -208,6 +211,7 @@ export default function UsersPage() {
                 <tr>
                   <th className="text-left px-4 py-3 font-medium text-muted-foreground">Name</th>
                   <th className="text-left px-4 py-3 font-medium text-muted-foreground">Email</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Role</th>
                   <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
                   <th className="text-right px-4 py-3 font-medium text-muted-foreground">
                     Actions
@@ -219,6 +223,15 @@ export default function UsersPage() {
                   <tr key={user.id} className="bg-card">
                     <td className="px-4 py-3 font-medium">{user.name}</td>
                     <td className="px-4 py-3 text-muted-foreground">{user.email}</td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                        user.role === 'admin'
+                          ? 'bg-purple-100 text-purple-700'
+                          : 'bg-blue-100 text-blue-700'
+                      }`}>
+                        {user.role}
+                      </span>
+                    </td>
                     <td className="px-4 py-3">
                       <span
                         className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
