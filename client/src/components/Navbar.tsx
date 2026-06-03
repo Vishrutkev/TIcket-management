@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
-import { useSession, signOut } from '../lib/auth-client'
+import { useSession, signOut } from '@/lib/auth-client'
+import { Button } from '@/components/ui/button'
 
 export default function Navbar() {
   const { data: session } = useSession()
@@ -15,23 +16,20 @@ export default function Navbar() {
     : '?'
 
   return (
-    <nav className="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-6">
-      <span className="font-semibold text-gray-900 text-sm tracking-wide">Support Desk</span>
+    <nav className="h-14 border-b bg-card flex items-center justify-between px-6">
+      <span className="font-semibold text-sm tracking-wide">Support Desk</span>
 
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 text-xs font-semibold flex items-center justify-center">
+          <div className="w-7 h-7 rounded-full bg-muted text-muted-foreground text-xs font-semibold flex items-center justify-center">
             {initials}
           </div>
-          <span className="text-sm text-gray-700 font-medium">{session?.user.name}</span>
+          <span className="text-sm font-medium">{session?.user.name}</span>
         </div>
 
-        <button
-          onClick={handleSignOut}
-          className="text-sm text-gray-500 hover:text-gray-800 border border-gray-200 hover:border-gray-300 px-3 py-1 rounded-lg transition-colors"
-        >
+        <Button variant="outline" size="sm" onClick={handleSignOut}>
           Sign out
-        </button>
+        </Button>
       </div>
     </nav>
   )

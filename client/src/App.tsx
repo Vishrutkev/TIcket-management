@@ -1,15 +1,15 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { useSession } from './lib/auth-client'
-import LoginPage from './pages/LoginPage'
-import HomePage from './pages/HomePage'
+import { useSession } from '@/lib/auth-client'
+import LoginPage from '@/pages/LoginPage'
+import HomePage from '@/pages/HomePage'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { data: session, isPending } = useSession()
 
   if (isPending) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-sm text-gray-400">Loading…</div>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-sm text-muted-foreground">Loading…</div>
       </div>
     )
   }
