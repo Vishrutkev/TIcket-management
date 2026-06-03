@@ -3,11 +3,9 @@
 ## Phase 1 — Project Setup
 
 - Initialise monorepo with `/client` (React) and `/server` (Node.js) directories
-- Set up React app with TypeScript, Tailwind CSS, and React Router
+- Set up React app with TypeScript
 - Set up Express server with TypeScript
 - Connect PostgreSQL and initialise Prisma
-- Define base Prisma schema: `User`, `Session`, `Ticket`, `Message`, `KnowledgeDoc`
-- Seed the database with the default admin account
 - Configure environment variables (`.env`) for both client and server
 
 ---
