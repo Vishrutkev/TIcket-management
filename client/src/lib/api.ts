@@ -1,4 +1,5 @@
-const BASE = 'http://localhost:3000/api'
+// VITE_API_URL must be set in .env.local (dev) and the production environment.
+const BASE = `${import.meta.env.VITE_API_URL ?? 'http://localhost:3000'}/api`
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {

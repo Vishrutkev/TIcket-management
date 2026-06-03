@@ -3,7 +3,9 @@ import type { auth } from '../../../server/src/lib/auth'
 import { InferServerPlugin } from 'better-auth/client/plugins'
 
 export const authClient = createAuthClient({
-  baseURL: 'http://localhost:3000',
+  // VITE_API_URL must be set in .env.local (dev) and the production environment.
+  // A hardcoded localhost URL would silently call the wrong host in any non-local deployment.
+  baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:3000',
   plugins: [InferServerPlugin<typeof auth>()],
 })
 

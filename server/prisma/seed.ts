@@ -22,13 +22,20 @@ async function createUser(name: string, email: string, password: string, role: R
 async function main() {
   const adminEmail = process.env.SEED_ADMIN_EMAIL
   const adminPassword = process.env.SEED_ADMIN_PASSWORD
+  // Agent credentials are independent of admin credentials.
+  // Using a shared password creates two accounts with the same (potentially weak) secret.
+  const agentEmail = process.env.SEED_AGENT_EMAIL ?? 'agent@example.com'
+  const agentPassword = process.env.SEED_AGENT_PASSWORD
 
   if (!adminEmail || !adminPassword) {
     throw new Error('SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD must be set in .env')
   }
+  if (!agentPassword) {
+    throw new Error('SEED_AGENT_PASSWORD must be set in .env')
+  }
 
   await createUser('Admin', adminEmail, adminPassword, Role.admin)
-  await createUser('Agent', 'agent@example.com', adminPassword, Role.agent)
+  await createUser('Agent', agentEmail, agentPassword, Role.agent)
 }
 
 main()
