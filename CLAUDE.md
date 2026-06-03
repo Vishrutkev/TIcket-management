@@ -8,16 +8,18 @@ AI-powered support ticket management system. Receives support emails, auto-class
 
 ## Tech Stack
 
-| Layer      | Technology                          |
-|------------|-------------------------------------|
-| Frontend   | React 18, TypeScript, Vite          |
-| Styling    | Tailwind CSS v3                     |
-| Routing    | React Router v6                     |
-| Backend    | Node.js, Express 4, TypeScript      |
-| ORM        | Prisma 5 (PostgreSQL)               |
-| Auth       | Server-side sessions (PostgreSQL)   |
-| AI         | Anthropic Claude API (`@anthropic-ai/sdk`) |
-| Email      | Resend (inbound + outbound)         |
+| Layer      | Technology                                        |
+|------------|---------------------------------------------------|
+| Frontend   | React 18, TypeScript, Vite                        |
+| Styling    | Tailwind CSS v4 (`@tailwindcss/vite`)             |
+| Components | shadcn/ui (Button, Input, Label, Card)            |
+| Forms      | react-hook-form + zod + @hookform/resolvers       |
+| Routing    | React Router v6                                   |
+| Backend    | Node.js, Express 4, TypeScript                    |
+| ORM        | Prisma 5 (PostgreSQL)                             |
+| Auth       | Better Auth (email/password, database sessions)   |
+| AI         | Anthropic Claude API (`@anthropic-ai/sdk`)        |
+| Email      | Resend (inbound + outbound)                       |
 
 ---
 
@@ -25,23 +27,32 @@ AI-powered support ticket management system. Receives support emails, auto-class
 
 ```
 ticket-management/
-├── client/               # Vite + React frontend (port 5173)
+├── client/                   # Vite + React frontend (port 5173)
+│   ├── components.json       # shadcn config
+│   ├── vite.config.ts        # uses @tailwindcss/vite plugin
 │   └── src/
-│       ├── components/   # Shared UI components
-│       ├── pages/        # Route-level page components
-│       ├── hooks/        # Custom React hooks
-│       ├── lib/          # API clients, utilities
-│       └── App.tsx       # Router setup
-├── server/               # Express backend (port 3000)
+│       ├── components/
+│       │   ├── ui/           # shadcn components (Button, Input, Label, Card)
+│       │   └── Navbar.tsx    # top nav with user name + sign out
+│       ├── pages/
+│       │   ├── LoginPage.tsx # email/password login form
+│       │   └── HomePage.tsx  # dashboard shell
+│       ├── lib/
+│       │   ├── auth-client.ts  # Better Auth React client
+│       │   ├── api.ts          # typed fetch wrapper for all API calls
+│       │   └── utils.ts        # shadcn cn() utility
+│       ├── index.css         # Tailwind v4 entrypoint + shadcn CSS variables
+│       └── App.tsx           # router + RequireAuth guard
+├── server/                   # Express backend (port 3000)
 │   ├── prisma/
-│   │   ├── schema.prisma # DB schema
-│   │   └── seed.ts       # Seeds default admin account
+│   │   ├── schema.prisma     # DB schema
+│   │   └── seed.ts           # seeds default admin account
 │   └── src/
-│       ├── routes/       # Express route handlers
-│       ├── middleware/   # Auth middleware (requireAuth, requireAdmin)
-│       ├── lib/          # prisma.ts, anthropic.ts, resend.ts
-│       └── index.ts      # Express app entry
-└── package.json          # Root workspace
+│       ├── routes/           # Express route handlers
+│       ├── middleware/        # requireAuth, requireAdmin
+│       ├── lib/              # prisma.ts, auth.ts, anthropic.ts, resend.ts
+│       └── index.ts          # Express app entry
+└── package.json              # root workspace
 ```
 
 ---
@@ -63,6 +74,9 @@ npm run db:generate --workspace=server   # regenerate client after schema change
 npm run db:migrate --workspace=server    # apply migrations
 npm run db:seed --workspace=server       # seed admin user
 npm run db:studio --workspace=server     # open Prisma Studio
+
+# Add a shadcn component (use temp cache to bypass root-owned npm cache)
+npm_config_cache=/tmp/npm-cache npx shadcn@latest add <component>
 ```
 
 ---
@@ -76,6 +90,8 @@ DATABASE_URL="postgresql://postgres:password@localhost:5432/ticket_management"
 PORT=3000
 CLIENT_URL="http://localhost:5173"
 NODE_ENV=development
+BETTER_AUTH_SECRET=""
+BETTER_AUTH_URL="http://localhost:3000"
 ANTHROPIC_API_KEY=""
 RESEND_API_KEY=""
 RESEND_FROM_EMAIL="support@yourdomain.com"
@@ -86,8 +102,8 @@ RESEND_INBOUND_DOMAIN="yourdomain.com"
 
 ## Database Models
 
-- **User** — `id, name, email, passwordHash, role (admin|agent), isActive`
-- **Session** — `id, userId, expiresAt` (server-side sessions)
+- **User** — `id, name, email, role (admin|agent), isActive` (Better Auth manages password)
+- **Session** — managed by Better Auth (`account`, `session`, `verification` tables)
 - **Ticket** — `id, subject, customerEmail, status, category, priority, assignedAgentId, aiSummary`
 - **Message** — `id, ticketId, body, isFromCustomer`
 - **KnowledgeDoc** — `id, title, content` (RAG source documents)
@@ -96,10 +112,56 @@ RESEND_INBOUND_DOMAIN="yourdomain.com"
 
 ## Auth Pattern
 
-- Sessions stored in PostgreSQL, session ID set as `httpOnly` cookie (`sessionId`)
-- `requireAuth` middleware reads cookie → looks up session → attaches `res.locals.user`
-- `requireAdmin` wraps `requireAuth` and checks `role === 'admin'`
-- Default admin seed: `admin@example.com` / `admin123`
+Better Auth handles all authentication. Sessions are database-backed with an `httpOnly` cookie.
+
+- **Server:** `server/src/lib/auth.ts` — `betterAuth()` with `prismaAdapter` and `emailAndPassword`
+- **Client:** `client/src/lib/auth-client.ts` — `createAuthClient` from `better-auth/react`
+- **Middleware:** `requireAuth` calls `auth.api.getSession()` then fetches full user from Prisma (for `role` + `isActive`). `requireAdmin` wraps `requireAuth`.
+- **Route handler:** `app.all('/api/auth/*', toNodeHandler(auth))` — must come **before** `express.json()`
+- **Default admin:** `admin@example.com` / `password123`
+
+**Auth endpoint mapping:**
+
+| Old | Better Auth |
+|-----|-------------|
+| `POST /api/auth/login` | `POST /api/auth/sign-in/email` |
+| `POST /api/auth/logout` | `POST /api/auth/sign-out` |
+| `GET /api/auth/me` | `GET /api/auth/get-session` |
+
+---
+
+## Tailwind CSS v4 Setup
+
+Tailwind v4 uses a Vite plugin instead of PostCSS — there is no `tailwind.config.js` or `postcss.config.js`.
+
+- `vite.config.ts` imports `tailwindcss` from `@tailwindcss/vite` and adds it to `plugins`
+- `src/index.css` starts with `@import "tailwindcss"` (replaces the three `@tailwind` directives)
+- Theme is configured in CSS via `@theme inline { --color-* }` — maps shadcn CSS variables to Tailwind color utilities
+- All shadcn color tokens (`bg-background`, `text-foreground`, `border-border`, etc.) are available as Tailwind utilities
+
+---
+
+## shadcn Components
+
+- Config: `client/components.json` (style: `base-nova`, cssVariables: true)
+- Components live in `client/src/components/ui/`
+- **Important:** shadcn CLI v4 generates components using `@base-ui/react` primitives which don't forward refs. Always rewrite generated `Input` and `Button` to use native `<input>` / `<button>` with `React.forwardRef` — otherwise react-hook-form breaks.
+
+---
+
+## Form Pattern (react-hook-form + zod)
+
+```tsx
+const schema = z.object({ email: z.string().email(), password: z.string().min(1) })
+type Fields = z.infer<typeof schema>
+
+const { register, handleSubmit, setError, formState: { errors, isSubmitting } } =
+  useForm<Fields>({ resolver: zodResolver(schema) })
+```
+
+- Always add `noValidate` to `<form>` to disable browser-native validation
+- Inline field errors via `errors.fieldName.message`
+- API errors via `setError('root', { message: '...' })` → `errors.root.message`
 
 ---
 
@@ -107,9 +169,9 @@ RESEND_INBOUND_DOMAIN="yourdomain.com"
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| POST | `/api/auth/login` | — | Login, sets session cookie |
-| POST | `/api/auth/logout` | user | Destroys session |
-| GET | `/api/auth/me` | user | Returns current user |
+| POST | `/api/auth/sign-in/email` | — | Login, sets session cookie |
+| POST | `/api/auth/sign-out` | user | Destroys session |
+| GET | `/api/auth/get-session` | — | Returns current session/user |
 | GET | `/api/tickets` | user | List tickets (filterable) |
 | GET | `/api/tickets/:id` | user | Ticket detail + messages |
 | PATCH | `/api/tickets/:id` | user | Update status / assignee |
@@ -131,41 +193,32 @@ RESEND_INBOUND_DOMAIN="yourdomain.com"
 ## Coding Conventions
 
 - No default exports except React components and the Express app
-- All API calls from the client go through `client/src/lib/api.ts` (to be created)
+- All API calls from the client go through `client/src/lib/api.ts`
 - All Prisma queries go through `server/src/lib/prisma.ts` singleton
 - Never expose `passwordHash` in API responses — always `select` explicit fields
 - Ticket status transitions: `open → resolved → closed`; customer reply re-opens `resolved` tickets
+- Path alias `@/` maps to `client/src/` — use it for all client imports
 
 ---
 
 ## Context7 — Up-to-date Documentation
 
-Always use Context7 MCP to fetch current docs before writing code that uses any library in this project. Training data may be outdated.
-
-**How to use:**
+Always use Context7 MCP to fetch current docs before writing code that uses any library in this project.
 
 1. Call `mcp__context7__resolve-library-id` with the library name and your question
 2. Pick the best match (highest benchmark score + source reputation)
 3. Call `mcp__context7__query-docs` with the library ID and your specific question
-4. Write code based on the fetched docs
-
-**Library reference IDs for this project** (resolve first to confirm):
 
 | Library | Query as |
 |---------|----------|
 | React | `React` |
 | React Router | `React Router` |
-| Tailwind CSS | `Tailwind CSS` |
+| Tailwind CSS v4 | `Tailwind CSS` |
+| shadcn/ui | `shadcn/ui` |
+| react-hook-form | `react-hook-form` |
+| zod | `zod` |
+| Better Auth | `Better Auth` |
 | Express | `Express` |
 | Prisma | `Prisma` |
 | Anthropic SDK | `Anthropic SDK` |
 | Resend | `Resend` |
-| bcryptjs | `bcryptjs` |
-
-**Always use Context7 for:**
-- Prisma schema syntax, migrations, queries
-- React Router v6 route/loader/action patterns
-- Tailwind CSS utility classes and config
-- Anthropic SDK messages API, tool use, streaming
-- Resend inbound webhook payload shape and outbound API
-- Express middleware and error handler signatures
