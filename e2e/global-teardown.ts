@@ -7,7 +7,7 @@ export default async function globalTeardown() {
   // Order matters: leaf tables first, then parent tables.
   // CASCADE covers FK dependencies; RESTART IDENTITY resets sequences.
   execSync(
-    `psql "${TEST_DB_URL}" -c "TRUNCATE TABLE \\"Message\\", \\"KnowledgeDoc\\", \\"Ticket\\", \\"Session\\", \\"User\\" RESTART IDENTITY CASCADE;"`,
+    `psql "${TEST_DB_URL}" -c "TRUNCATE TABLE \\"Message\\", \\"KnowledgeDoc\\", \\"Ticket\\", session, account, verification, \\"user\\" RESTART IDENTITY CASCADE;"`,
     { stdio: 'inherit' },
   )
 }

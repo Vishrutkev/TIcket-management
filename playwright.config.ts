@@ -13,7 +13,8 @@ export default defineConfig({
   forbidOnly: isCI,
   retries: isCI ? 2 : 0,
   workers: isCI ? 1 : undefined,
-  reporter: [['html', { open: 'never' }]],
+  outputDir: "./e2e/test-results",
+  reporter: [['html', { open: 'never', outputFolder: "./e2e/test-results" }]],
 
   use: {
     baseURL: `http://localhost:${TEST_CLIENT_PORT}`,
