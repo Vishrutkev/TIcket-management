@@ -1,25 +1,25 @@
 import { Request, Response, NextFunction } from 'express'
+import { fromNodeHeaders } from 'better-auth/node'
+import { auth } from '../lib/auth'
 import prisma from '../lib/prisma'
 
 export async function requireAuth(req: Request, res: Response, next: NextFunction) {
-  const sessionId = req.cookies?.sessionId
+  const session = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) })
 
-  if (!sessionId) {
+  if (!session) {
     res.status(401).json({ error: 'Unauthorized' })
     return
   }
 
-  const session = await prisma.session.findUnique({
-    where: { id: sessionId },
-    include: { user: true },
-  })
+  // Fetch full user to include custom fields (role, isActive) not returned by BA
+  const user = await prisma.user.findUnique({ where: { id: session.user.id } })
 
-  if (!session || session.expiresAt < new Date()) {
+  if (!user || !user.isActive) {
     res.status(401).json({ error: 'Unauthorized' })
     return
   }
 
-  res.locals.user = session.user
+  res.locals.user = user
   next()
 }
 
