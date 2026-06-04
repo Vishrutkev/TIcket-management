@@ -20,6 +20,9 @@ export default function Navbar() {
     <nav className="h-14 border-b bg-card flex items-center justify-between px-6">
       <div className="flex items-center gap-6">
         <Link to="/dashboard" className="font-semibold text-sm tracking-wide hover:opacity-80 transition-opacity">Support Desk</Link>
+        <Link to="/tickets" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+          Tickets
+        </Link>
         {session?.user.role === Role.admin && (
           <Link to="/users" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
             Users
