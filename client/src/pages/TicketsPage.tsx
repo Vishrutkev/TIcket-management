@@ -1,13 +1,24 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { type SortingState } from '@tanstack/react-table'
 import { type Ticket } from '@tm/core'
 import Navbar from '@/components/Navbar'
 import { api } from '@/lib/api'
 import { TicketsTable } from '@/components/tickets/TicketsTable'
 
 export default function TicketsPage() {
+  const [sorting, setSorting] = useState<SortingState>([{ id: 'createdAt', desc: true }])
+
   const { data: tickets = [], isLoading, error } = useQuery({
-    queryKey: ['tickets'],
-    queryFn: () => api.get<Ticket[]>('/tickets'),
+    queryKey: ['tickets', sorting],
+    queryFn: () => {
+      const params = new URLSearchParams()
+      if (sorting.length > 0) {
+        params.set('sortBy', sorting[0].id)
+        params.set('sortOrder', sorting[0].desc ? 'desc' : 'asc')
+      }
+      return api.get<Ticket[]>(`/tickets?${params}`)
+    },
   })
 
   return (
@@ -24,7 +35,12 @@ export default function TicketsPage() {
         {error ? (
           <p className="text-sm text-destructive">{(error as Error).message}</p>
         ) : (
-          <TicketsTable tickets={tickets} isLoading={isLoading} />
+          <TicketsTable
+            tickets={tickets}
+            isLoading={isLoading}
+            sorting={sorting}
+            onSortingChange={setSorting}
+          />
         )}
       </main>
     </div>

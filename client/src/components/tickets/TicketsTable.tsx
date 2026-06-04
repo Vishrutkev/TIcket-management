@@ -1,10 +1,22 @@
+import {
+  useReactTable,
+  getCoreRowModel,
+  flexRender,
+  createColumnHelper,
+  type SortingState,
+  type OnChangeFn,
+} from '@tanstack/react-table'
+import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
+import { ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react'
 import { type Ticket, type TicketStatus, type TicketPriority, type TicketCategory } from '@tm/core'
 import { Skeleton } from '@/components/ui/skeleton'
 
 type Props = {
   tickets: Ticket[]
   isLoading: boolean
+  sorting: SortingState
+  onSortingChange: OnChangeFn<SortingState>
 }
 
 const STATUS_STYLES: Record<TicketStatus, string> = {
@@ -36,13 +48,97 @@ function Badge({ label, className }: { label: string; className: string }) {
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
+    month: 'short', day: 'numeric', year: 'numeric',
   })
 }
 
-export function TicketsTable({ tickets, isLoading }: Props) {
+const columnHelper = createColumnHelper<Ticket>()
+
+export function TicketsTable({ tickets, isLoading, sorting, onSortingChange }: Props) {
+  const columns = useMemo(() => [
+    columnHelper.accessor('subject', {
+      header: 'Subject',
+      enableSorting: true,
+      cell: ({ row }) => (
+        <div className="font-medium max-w-xs">
+          <Link
+            to={`/tickets/${row.original.id}`}
+            className="hover:underline text-foreground line-clamp-1"
+          >
+            {row.original.subject}
+          </Link>
+          {row.original._count.messages > 0 && (
+            <span className="ml-2 text-xs text-muted-foreground">
+              {row.original._count.messages} msg{row.original._count.messages !== 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
+      ),
+    }),
+    columnHelper.accessor('customerEmail', {
+      header: 'Customer',
+      enableSorting: true,
+      cell: ({ getValue }) => (
+        <span className="text-muted-foreground">{getValue()}</span>
+      ),
+    }),
+    columnHelper.accessor('status', {
+      header: 'Status',
+      enableSorting: true,
+      cell: ({ getValue }) => (
+        <Badge label={getValue()} className={STATUS_STYLES[getValue()]} />
+      ),
+    }),
+    columnHelper.accessor('priority', {
+      header: 'Priority',
+      enableSorting: true,
+      cell: ({ getValue }) => {
+        const v = getValue()
+        return v
+          ? <Badge label={v} className={PRIORITY_STYLES[v]} />
+          : <span className="text-muted-foreground">—</span>
+      },
+    }),
+    columnHelper.accessor('category', {
+      header: 'Category',
+      enableSorting: false,
+      cell: ({ getValue }) => {
+        const v = getValue()
+        return v
+          ? <Badge label={CATEGORY_LABELS[v]} className="bg-muted text-muted-foreground" />
+          : <span className="text-muted-foreground">—</span>
+      },
+    }),
+    columnHelper.display({
+      id: 'assignedAgent',
+      header: 'Agent',
+      enableSorting: false,
+      cell: ({ row }) => (
+        <span className="text-muted-foreground">
+          {row.original.assignedAgent
+            ? row.original.assignedAgent.name
+            : <span className="text-muted-foreground/50">Unassigned</span>}
+        </span>
+      ),
+    }),
+    columnHelper.accessor('createdAt', {
+      header: 'Created',
+      enableSorting: true,
+      cell: ({ getValue }) => (
+        <span className="text-muted-foreground whitespace-nowrap">{formatDate(getValue())}</span>
+      ),
+    }),
+  ], [])
+
+  const table = useReactTable({
+    data: tickets,
+    columns,
+    state: { sorting },
+    onSortingChange,
+    manualSorting: true,
+    getCoreRowModel: getCoreRowModel(),
+  })
+
   if (isLoading) {
     return (
       <div className="rounded-lg border overflow-hidden">
@@ -75,76 +171,50 @@ export function TicketsTable({ tickets, isLoading }: Props) {
   }
 
   if (tickets.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">No tickets yet.</p>
-    )
+    return <p className="text-sm text-muted-foreground">No tickets yet.</p>
   }
 
   return (
     <div className="rounded-lg border overflow-hidden">
       <table className="w-full text-sm">
         <thead className="bg-muted/50">
-          <tr>
-            <th className="text-left px-4 py-3 font-medium text-muted-foreground">Subject</th>
-            <th className="text-left px-4 py-3 font-medium text-muted-foreground">Customer</th>
-            <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
-            <th className="text-left px-4 py-3 font-medium text-muted-foreground">Priority</th>
-            <th className="text-left px-4 py-3 font-medium text-muted-foreground">Category</th>
-            <th className="text-left px-4 py-3 font-medium text-muted-foreground">Agent</th>
-            <th className="text-left px-4 py-3 font-medium text-muted-foreground">Created</th>
-          </tr>
+          {table.getHeaderGroups().map(headerGroup => (
+            <tr key={headerGroup.id}>
+              {headerGroup.headers.map(header => {
+                const canSort = header.column.getCanSort()
+                const sorted = header.column.getIsSorted()
+                return (
+                  <th
+                    key={header.id}
+                    className="text-left px-4 py-3 font-medium text-muted-foreground"
+                  >
+                    {canSort ? (
+                      <button
+                        className="flex items-center gap-1 hover:text-foreground transition-colors"
+                        onClick={header.column.getToggleSortingHandler()}
+                      >
+                        {flexRender(header.column.columnDef.header, header.getContext())}
+                        {sorted === 'asc' && <ArrowUp className="h-3.5 w-3.5" />}
+                        {sorted === 'desc' && <ArrowDown className="h-3.5 w-3.5" />}
+                        {!sorted && <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />}
+                      </button>
+                    ) : (
+                      flexRender(header.column.columnDef.header, header.getContext())
+                    )}
+                  </th>
+                )
+              })}
+            </tr>
+          ))}
         </thead>
         <tbody className="divide-y divide-border">
-          {tickets.map((ticket) => (
-            <tr key={ticket.id} className="bg-card hover:bg-muted/30 transition-colors">
-              <td className="px-4 py-3 font-medium max-w-xs">
-                <Link
-                  to={`/tickets/${ticket.id}`}
-                  className="hover:underline text-foreground line-clamp-1"
-                >
-                  {ticket.subject}
-                </Link>
-                {ticket._count.messages > 0 && (
-                  <span className="ml-2 text-xs text-muted-foreground">
-                    {ticket._count.messages} msg{ticket._count.messages !== 1 ? 's' : ''}
-                  </span>
-                )}
-              </td>
-              <td className="px-4 py-3 text-muted-foreground">{ticket.customerEmail}</td>
-              <td className="px-4 py-3">
-                <Badge
-                  label={ticket.status}
-                  className={STATUS_STYLES[ticket.status]}
-                />
-              </td>
-              <td className="px-4 py-3">
-                {ticket.priority ? (
-                  <Badge
-                    label={ticket.priority}
-                    className={PRIORITY_STYLES[ticket.priority]}
-                  />
-                ) : (
-                  <span className="text-muted-foreground">—</span>
-                )}
-              </td>
-              <td className="px-4 py-3">
-                {ticket.category ? (
-                  <Badge
-                    label={CATEGORY_LABELS[ticket.category]}
-                    className="bg-muted text-muted-foreground"
-                  />
-                ) : (
-                  <span className="text-muted-foreground">—</span>
-                )}
-              </td>
-              <td className="px-4 py-3 text-muted-foreground">
-                {ticket.assignedAgent ? ticket.assignedAgent.name : (
-                  <span className="text-muted-foreground/50">Unassigned</span>
-                )}
-              </td>
-              <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
-                {formatDate(ticket.createdAt)}
-              </td>
+          {table.getRowModel().rows.map(row => (
+            <tr key={row.id} className="bg-card hover:bg-muted/30 transition-colors">
+              {row.getVisibleCells().map(cell => (
+                <td key={cell.id} className="px-4 py-3">
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                </td>
+              ))}
             </tr>
           ))}
         </tbody>

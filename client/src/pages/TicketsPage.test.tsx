@@ -80,10 +80,10 @@ describe('TicketsPage', () => {
     await screen.findByText('Failed to load tickets')
   })
 
-  it('calls GET /tickets on mount', async () => {
+  it('calls GET /tickets with default sort params on mount', async () => {
     mockApi.get.mockResolvedValue([])
     renderPage(<TicketsPage />)
     await screen.findByText(/no tickets yet/i)
-    expect(mockApi.get).toHaveBeenCalledWith('/tickets')
+    expect(mockApi.get).toHaveBeenCalledWith('/tickets?sortBy=createdAt&sortOrder=desc')
   })
 })
