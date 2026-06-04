@@ -16,6 +16,7 @@ const ticketQuerySchema = z.object({
   priority: z.enum(['urgent', 'high', 'normal', 'low']).optional(),
   sortBy: z.enum(SORTABLE_COLUMNS).optional(),
   sortOrder: z.enum(['asc', 'desc']).optional(),
+  search: z.string().optional(),
 })
 
 const patchTicketSchema = z.object({
@@ -29,13 +30,19 @@ router.get('/', async (req, res) => {
     res.status(400).json({ error: result.error.issues[0].message })
     return
   }
-  const { status, category, priority, sortBy = 'createdAt', sortOrder = 'desc' } = result.data
+  const { status, category, priority, sortBy = 'createdAt', sortOrder = 'desc', search } = result.data
 
   const tickets = await prisma.ticket.findMany({
     where: {
       ...(status ? { status } : {}),
       ...(category ? { category } : {}),
       ...(priority ? { priority } : {}),
+      ...(search ? {
+        OR: [
+          { subject: { contains: search, mode: 'insensitive' } },
+          { customerEmail: { contains: search, mode: 'insensitive' } },
+        ],
+      } : {}),
     },
     include: {
       assignedAgent: { select: { id: true, name: true, email: true } },

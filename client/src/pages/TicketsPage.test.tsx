@@ -84,6 +84,7 @@ describe('TicketsPage', () => {
     mockApi.get.mockResolvedValue([])
     renderPage(<TicketsPage />)
     await screen.findByText(/no tickets yet/i)
+    // search is empty so no search param is added
     expect(mockApi.get).toHaveBeenCalledWith('/tickets?sortBy=createdAt&sortOrder=desc')
   })
 })
