@@ -2,6 +2,14 @@ export type TicketStatus = 'open' | 'resolved' | 'closed'
 export type TicketCategory = 'general_question' | 'technical_question' | 'refund_request'
 export type TicketPriority = 'urgent' | 'high' | 'normal' | 'low'
 
+export type PaginatedTickets = {
+  data: Ticket[]
+  total: number
+  page: number
+  pageSize: number
+  pageCount: number
+}
+
 export type Ticket = {
   id: string
   subject: string

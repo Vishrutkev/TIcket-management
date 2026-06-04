@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { screen } from '@testing-library/react'
 import { renderPage } from '@/test/renderPage'
 import TicketsPage from './TicketsPage'
-import type { Ticket } from '@tm/core'
+import type { Ticket, PaginatedTickets } from '@tm/core'
 
 vi.mock('@/lib/api', () => ({
   api: { get: vi.fn() },
@@ -34,42 +34,51 @@ const TICKET: Ticket = {
   _count: { messages: 1 },
 }
 
+function paged(tickets: Ticket[], page = 1, pageSize = 20): PaginatedTickets {
+  return {
+    data: tickets,
+    total: tickets.length,
+    page,
+    pageSize,
+    pageCount: Math.ceil(tickets.length / pageSize),
+  }
+}
+
 beforeEach(() => vi.clearAllMocks())
 
 describe('TicketsPage', () => {
   it('shows skeleton rows while loading', () => {
     mockApi.get.mockReturnValue(new Promise(() => {}))
     renderPage(<TicketsPage />)
-    // 1 header + 5 skeleton rows
     expect(screen.getAllByRole('row')).toHaveLength(6)
   })
 
   it('renders the page heading', async () => {
-    mockApi.get.mockResolvedValue([])
+    mockApi.get.mockResolvedValue(paged([]))
     renderPage(<TicketsPage />)
     expect(screen.getByRole('heading', { name: /tickets/i })).toBeInTheDocument()
   })
 
   it('shows empty state when no tickets are returned', async () => {
-    mockApi.get.mockResolvedValue([])
+    mockApi.get.mockResolvedValue(paged([]))
     renderPage(<TicketsPage />)
     await screen.findByText(/no tickets yet/i)
   })
 
   it('shows ticket count after loading', async () => {
-    mockApi.get.mockResolvedValue([TICKET])
+    mockApi.get.mockResolvedValue(paged([TICKET]))
     renderPage(<TicketsPage />)
     await screen.findByText('1 ticket')
   })
 
   it('shows plural ticket count for multiple tickets', async () => {
-    mockApi.get.mockResolvedValue([TICKET, { ...TICKET, id: '2' }])
+    mockApi.get.mockResolvedValue(paged([TICKET, { ...TICKET, id: '2' }]))
     renderPage(<TicketsPage />)
     await screen.findByText('2 tickets')
   })
 
   it('renders ticket subject in the table', async () => {
-    mockApi.get.mockResolvedValue([TICKET])
+    mockApi.get.mockResolvedValue(paged([TICKET]))
     renderPage(<TicketsPage />)
     await screen.findByText('Login is broken')
   })
@@ -80,11 +89,12 @@ describe('TicketsPage', () => {
     await screen.findByText('Failed to load tickets')
   })
 
-  it('calls GET /tickets with default sort params on mount', async () => {
-    mockApi.get.mockResolvedValue([])
+  it('calls GET /tickets with default sort and page params on mount', async () => {
+    mockApi.get.mockResolvedValue(paged([]))
     renderPage(<TicketsPage />)
     await screen.findByText(/no tickets yet/i)
-    // search is empty so no search param is added
-    expect(mockApi.get).toHaveBeenCalledWith('/tickets?sortBy=createdAt&sortOrder=desc')
+    expect(mockApi.get).toHaveBeenCalledWith(
+      '/tickets?sortBy=createdAt&sortOrder=desc&page=1&pageSize=20'
+    )
   })
 })

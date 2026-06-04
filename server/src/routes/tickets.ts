@@ -17,6 +17,8 @@ const ticketQuerySchema = z.object({
   sortBy: z.enum(SORTABLE_COLUMNS).optional(),
   sortOrder: z.enum(['asc', 'desc']).optional(),
   search: z.string().optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
 })
 
 const patchTicketSchema = z.object({
@@ -30,28 +32,41 @@ router.get('/', async (req, res) => {
     res.status(400).json({ error: result.error.issues[0].message })
     return
   }
-  const { status, category, priority, sortBy = 'createdAt', sortOrder = 'desc', search } = result.data
+  const { status, category, priority, sortBy = 'createdAt', sortOrder = 'desc', search, page, pageSize } = result.data
 
-  const tickets = await prisma.ticket.findMany({
-    where: {
-      ...(status ? { status } : {}),
-      ...(category ? { category } : {}),
-      ...(priority ? { priority } : {}),
-      ...(search ? {
-        OR: [
-          { subject: { contains: search, mode: 'insensitive' } },
-          { customerEmail: { contains: search, mode: 'insensitive' } },
-        ],
-      } : {}),
-    },
-    include: {
-      assignedAgent: { select: { id: true, name: true, email: true } },
-      _count: { select: { messages: true } },
-    },
-    orderBy: { [sortBy]: sortOrder },
+  const where = {
+    ...(status ? { status } : {}),
+    ...(category ? { category } : {}),
+    ...(priority ? { priority } : {}),
+    ...(search ? {
+      OR: [
+        { subject: { contains: search, mode: 'insensitive' as const } },
+        { customerEmail: { contains: search, mode: 'insensitive' as const } },
+      ],
+    } : {}),
+  }
+
+  const [tickets, total] = await prisma.$transaction([
+    prisma.ticket.findMany({
+      where,
+      include: {
+        assignedAgent: { select: { id: true, name: true, email: true } },
+        _count: { select: { messages: true } },
+      },
+      orderBy: { [sortBy]: sortOrder },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+    prisma.ticket.count({ where }),
+  ])
+
+  res.json({
+    data: tickets,
+    total,
+    page,
+    pageSize,
+    pageCount: Math.ceil(total / pageSize),
   })
-
-  res.json(tickets)
 })
 
 router.get('/:id', async (req, res) => {
