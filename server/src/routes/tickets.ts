@@ -23,6 +23,7 @@ const ticketQuerySchema = z.object({
 
 const patchTicketSchema = z.object({
   status: z.enum(['open', 'resolved', 'closed']).optional(),
+  category: z.enum(['general_question', 'technical_question', 'refund_request']).nullable().optional(),
   assignedAgentId: z.string().nullable().optional(),
 })
 
@@ -101,7 +102,7 @@ router.patch('/:id', async (req, res) => {
     res.status(400).json({ error: result.error.issues[0].message })
     return
   }
-  const { status, assignedAgentId } = result.data
+  const { status, category, assignedAgentId } = result.data
 
   if (assignedAgentId !== undefined && assignedAgentId !== null) {
     const agent = await prisma.user.findUnique({ where: { id: assignedAgentId } })
@@ -115,6 +116,7 @@ router.patch('/:id', async (req, res) => {
     where: { id: req.params.id },
     data: {
       ...(status !== undefined ? { status } : {}),
+      ...(category !== undefined ? { category } : {}),
       ...(assignedAgentId !== undefined ? { assignedAgentId } : {}),
     },
   })
