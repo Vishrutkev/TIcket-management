@@ -6,6 +6,7 @@ import { Prisma } from '@prisma/client'
 import { auth } from './lib/auth'
 import ticketsRouter from './routes/tickets'
 import usersRouter from './routes/users'
+import inboundEmailRouter from './routes/inbound-email'
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -30,6 +31,8 @@ if (process.env.NODE_ENV === 'production') {
 app.all('/api/auth/*path', toNodeHandler(auth))
 
 app.use(express.json())
+
+app.use('/api/inbound-email', inboundEmailRouter)
 
 app.use('/api/tickets', ticketsRouter)
 app.use('/api/users', usersRouter)

@@ -20,7 +20,7 @@ AI-powered support ticket management system. Receives support emails, auto-class
 | ORM        | Prisma 5 (PostgreSQL)                             |
 | Auth       | Better Auth (email/password, database sessions)   |
 | AI         | Anthropic Claude API (`@anthropic-ai/sdk`)        |
-| Email      | Resend (inbound + outbound)                       |
+| Email      | SendGrid Inbound Parse (inbound webhook)          |
 
 ---
 
@@ -61,7 +61,7 @@ ticket-management/
 │   └── src/
 │       ├── routes/           # Express route handlers
 │       ├── middleware/        # requireAuth, requireAdmin
-│       ├── lib/              # prisma.ts, auth.ts, anthropic.ts, resend.ts
+│       ├── lib/              # prisma.ts, auth.ts, anthropic.ts
 │       └── index.ts          # Express app entry
 └── package.json              # root workspace
 ```
@@ -112,9 +112,7 @@ SEED_ADMIN_PASSWORD="password123"
 SEED_AGENT_EMAIL="agent@example.com"
 SEED_AGENT_PASSWORD=""           # required — separate from admin password
 ANTHROPIC_API_KEY=""
-RESEND_API_KEY=""
-RESEND_FROM_EMAIL="support@yourdomain.com"
-RESEND_INBOUND_DOMAIN="yourdomain.com"
+SENDGRID_WEBHOOK_TOKEN=""   # shared secret in webhook URL: ?token=VALUE (optional in dev)
 ```
 
 `client/.env.local`:
@@ -337,6 +335,7 @@ router.post('/users', requireAdmin, async (req, res) => {
 | PUT | `/api/users/:id` | admin | Edit user name, email, and optionally password |
 | PATCH | `/api/users/:id` | admin | Activate/deactivate agent |
 | DELETE | `/api/users/:id` | admin | Delete agent |
+| POST | `/api/inbound-email` | — (webhook) | SendGrid Inbound Parse webhook; creates ticket + first message |
 
 ---
 
@@ -377,7 +376,8 @@ const mutation = useMutation({
 
 ## Coding Conventions
 
-- **No try/catch in route handlers** — Express 5 automatically forwards rejected async promises to the global error handler in `index.ts`. Never wrap route logic in try/catch; just `await` directly.
+- **No try/catch in route handlers** — Express 5 automatically forwards rejected async promises to the global error handler in `index.ts`. Never wrap route logic in try/catch; just `await` directly. Exception: the Claude API call in `inbound-email.ts` is wrapped in try/catch intentionally for graceful AI degradation (ticket still created without classification if AI fails).
+- **`/api/inbound-email` uses `multer().none()`** — SendGrid Inbound Parse sends `multipart/form-data`, not JSON. `multer` is applied inline on the route only; other routes use the global `express.json()`. Webhook security uses a shared token via query param (`?token=SENDGRID_WEBHOOK_TOKEN`), checked with `crypto.timingSafeEqual`.
 - **Express 5 wildcard routes** — Express 5 requires named wildcards. Use `/api/auth/*path` not `/api/auth/*` — the bare `*` throws a `PathError` at startup.
 - No default exports except React components and the Express app
 - All API calls from the client go through `client/src/lib/api.ts`
