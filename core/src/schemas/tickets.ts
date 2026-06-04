@@ -24,3 +24,15 @@ export type Ticket = {
   assignedAgent: { id: string; name: string; email: string } | null
   _count: { messages: number }
 }
+
+export type Message = {
+  id: string
+  ticketId: string
+  body: string
+  isFromCustomer: boolean
+  createdAt: string
+}
+
+export type TicketWithMessages = Omit<Ticket, '_count'> & {
+  messages: Message[]
+}

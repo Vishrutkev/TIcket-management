@@ -7,6 +7,7 @@ import LoginPage from '@/pages/LoginPage'
 import HomePage from '@/pages/HomePage'
 import UsersPage from '@/pages/UsersPage'
 import TicketsPage from '@/pages/TicketsPage'
+import TicketDetailPage from '@/pages/TicketDetailPage'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { data: session, isPending } = useSession()
@@ -64,7 +65,7 @@ function App() {
         />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/tickets" element={<RequireAuth><TicketsPage /></RequireAuth>} />
-        <Route path="/tickets/:id" element={<RequireAuth><div>Ticket Detail</div></RequireAuth>} />
+        <Route path="/tickets/:id" element={<RequireAuth><TicketDetailPage /></RequireAuth>} />
         <Route path="/users" element={<RequireAdmin><UsersPage /></RequireAdmin>} />
         <Route path="/knowledge" element={<RequireAuth><div>Knowledge Base</div></RequireAuth>} />
       </Routes>

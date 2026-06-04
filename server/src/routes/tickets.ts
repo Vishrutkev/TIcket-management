@@ -26,6 +26,15 @@ const patchTicketSchema = z.object({
   assignedAgentId: z.string().nullable().optional(),
 })
 
+router.get('/agents', async (_req, res) => {
+  const agents = await prisma.user.findMany({
+    where: { role: 'agent', isActive: true, deletedAt: null },
+    select: { id: true, name: true, email: true },
+    orderBy: { name: 'asc' },
+  })
+  res.json(agents)
+})
+
 router.get('/', async (req, res) => {
   const result = ticketQuerySchema.safeParse(req.query)
   if (!result.success) {
