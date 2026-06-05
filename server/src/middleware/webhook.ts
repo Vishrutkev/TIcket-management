@@ -8,7 +8,7 @@ export function requireWebhookToken(req: Request, res: Response, next: NextFunct
     return
   }
 
-  const provided = req.query.token
+  const provided = req.query.secret
   if (typeof provided !== 'string' || provided.length === 0) {
     res.status(401).json({ error: 'Missing webhook token' })
     return

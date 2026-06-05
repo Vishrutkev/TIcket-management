@@ -36,7 +36,7 @@ app.all('/api/auth/*path', toNodeHandler(auth))
 
 app.use(express.json())
 
-app.use('/api/inbound-email', inboundEmailRouter)
+app.use('/api/webhooks/inbound-email', inboundEmailRouter)
 
 app.use('/api/dashboard', dashboardRouter)
 app.use('/api/tickets', ticketsRouter)
