@@ -1,4 +1,4 @@
-export type TicketStatus = 'open' | 'resolved' | 'closed'
+export type TicketStatus = 'new' | 'processing' | 'open' | 'resolved' | 'closed'
 export type TicketCategory = 'general_question' | 'technical_question' | 'refund_request'
 export type TicketPriority = 'urgent' | 'high' | 'normal' | 'low'
 

@@ -162,7 +162,10 @@ async function seedTickets(agentId: string | null) {
         subject: t.subject,
         customerEmail: t.customerEmail,
         customerName: deriveCustomerName(t.customerEmail),
-        status: t.status,
+        // Seeded tickets that are 'resolved' become 'closed' — only the auto-resolve
+        // worker should ever produce 'resolved', ensuring every resolved ticket has
+        // an AI reply message attached.
+        status: t.status === 'resolved' ? 'closed' : t.status,
         category: t.category,
         priority: t.priority,
         aiSummary: t.aiSummary,

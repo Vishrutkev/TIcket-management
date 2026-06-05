@@ -5,6 +5,7 @@ import prisma from '../lib/prisma'
 import boss from '../lib/boss'
 import { requireWebhookToken } from '../middleware/webhook'
 import { CLASSIFY_TICKET_QUEUE } from '../workers/classifyTicket'
+import { AUTO_RESOLVE_QUEUE } from '../workers/autoResolveTicket'
 
 const router = Router()
 const upload = multer()
@@ -44,7 +45,7 @@ router.post('/', requireWebhookToken, upload.none(), async (req, res) => {
       subject,
       customerEmail,
       customerName: customerName || null,
-      status: 'open',
+      status: 'new',
     },
   })
 
@@ -60,6 +61,11 @@ router.post('/', requireWebhookToken, upload.none(), async (req, res) => {
 
   await boss.send(
     CLASSIFY_TICKET_QUEUE,
+    { ticketId: ticket.id, subject, body: textBody },
+    { retryLimit: 3, retryBackoff: true },
+  )
+  await boss.send(
+    AUTO_RESOLVE_QUEUE,
     { ticketId: ticket.id, subject, body: textBody },
     { retryLimit: 3, retryBackoff: true },
   )

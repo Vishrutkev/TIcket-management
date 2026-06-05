@@ -3,7 +3,7 @@ import { z } from 'zod'
 export const SORTABLE_COLUMNS = ['subject', 'customerEmail', 'status', 'priority', 'createdAt'] as const
 
 export const ticketQuerySchema = z.object({
-  status: z.enum(['open', 'resolved', 'closed']).optional(),
+  status: z.enum(['new', 'processing', 'open', 'resolved', 'closed']).optional(),
   category: z.enum(['general_question', 'technical_question', 'refund_request']).optional(),
   priority: z.enum(['urgent', 'high', 'normal', 'low']).optional(),
   sortBy: z.enum(SORTABLE_COLUMNS).optional(),

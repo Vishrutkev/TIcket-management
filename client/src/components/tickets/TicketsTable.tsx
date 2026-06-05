@@ -20,6 +20,8 @@ type Props = {
 }
 
 const STATUS_STYLES: Record<TicketStatus, string> = {
+  new: 'bg-purple-100 text-purple-700',
+  processing: 'bg-amber-100 text-amber-700',
   open: 'bg-blue-100 text-blue-700',
   resolved: 'bg-green-100 text-green-700',
   closed: 'bg-muted text-muted-foreground',

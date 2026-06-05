@@ -91,7 +91,7 @@ model Ticket {
   subject         String
   customerEmail   String
   customerName    String?
-  status          String   @default("open") // "open" | "resolved" | "closed"
+  status          String   @default("new") // "new" | "processing" | "open" | "resolved" | "closed"
   category        String? // "general_question" | "technical_question" | "refund_request"
   priority        String? // "urgent" | "high" | "normal" | "low"
   assignedAgentId String?

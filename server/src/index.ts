@@ -9,6 +9,7 @@ import ticketsRouter from './routes/tickets'
 import usersRouter from './routes/users'
 import inboundEmailRouter from './routes/inbound-email'
 import { CLASSIFY_TICKET_QUEUE, classifyTicketWorker } from './workers/classifyTicket'
+import { AUTO_RESOLVE_QUEUE, autoResolveWorker } from './workers/autoResolveTicket'
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -67,8 +68,10 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
 async function startServer() {
   await boss.start()
   await boss.createQueue(CLASSIFY_TICKET_QUEUE)
+  await boss.createQueue(AUTO_RESOLVE_QUEUE)
   await boss.work(CLASSIFY_TICKET_QUEUE, classifyTicketWorker)
-  console.log('[pg-boss] classify-ticket worker registered')
+  await boss.work(AUTO_RESOLVE_QUEUE, autoResolveWorker)
+  console.log('[pg-boss] workers registered: classify-ticket, auto-resolve-ticket')
 
   app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`)
