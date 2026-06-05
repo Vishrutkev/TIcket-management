@@ -12,6 +12,7 @@ export type AutoResolveData = {
   ticketId: string
   subject: string
   body: string
+  aiAgentId: string | null
 }
 
 const KNOWLEDGE_BASE = readFileSync(join(__dirname, '../../knowledge-base.md'), 'utf-8')
@@ -22,7 +23,7 @@ const autoResolveSchema = z.object({
 })
 
 export async function autoResolveWorker([job]: PgBoss.Job<AutoResolveData>[]) {
-  const { ticketId, subject, body } = job.data
+  const { ticketId, subject, body, aiAgentId } = job.data
 
   const ticket = await prisma.ticket.findUnique({
     where: { id: ticketId },
@@ -65,8 +66,8 @@ ${KNOWLEDGE_BASE}`,
   } else {
     await prisma.ticket.update({
       where: { id: ticketId },
-      data: { status: 'open' },
+      data: { status: 'open', assignedAgentId: null },
     })
-    console.log(`[auto-resolve] ticket ${ticketId} could not be resolved, moved to open`)
+    console.log(`[auto-resolve] ticket ${ticketId} could not be resolved, unassigned and moved to open`)
   }
 }

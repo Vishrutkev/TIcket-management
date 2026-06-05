@@ -5,6 +5,7 @@ import { toNodeHandler } from 'better-auth/node'
 import { Prisma } from '@prisma/client'
 import { auth } from './lib/auth'
 import boss from './lib/boss'
+import dashboardRouter from './routes/dashboard'
 import ticketsRouter from './routes/tickets'
 import usersRouter from './routes/users'
 import inboundEmailRouter from './routes/inbound-email'
@@ -37,6 +38,7 @@ app.use(express.json())
 
 app.use('/api/inbound-email', inboundEmailRouter)
 
+app.use('/api/dashboard', dashboardRouter)
 app.use('/api/tickets', ticketsRouter)
 app.use('/api/users', usersRouter)
 

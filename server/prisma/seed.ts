@@ -190,6 +190,7 @@ async function main() {
 
   await createUser('Admin', adminEmail, adminPassword, Role.admin)
   const agent = await createUser('Agent', agentEmail, agentPassword, Role.agent)
+  await createUser('AI', 'ai@system.local', 'ai-agent-no-login-xk92mf7p', Role.agent)
   await seedTickets(agent?.id ?? null)
 }
 

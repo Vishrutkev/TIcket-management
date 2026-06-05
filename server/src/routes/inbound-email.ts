@@ -10,6 +10,19 @@ import { AUTO_RESOLVE_QUEUE } from '../workers/autoResolveTicket'
 const router = Router()
 const upload = multer()
 
+// Cached on first use — the AI agent ID never changes at runtime
+let aiAgentId: string | null | undefined
+
+async function getAiAgentId(): Promise<string | null> {
+  if (aiAgentId !== undefined) return aiAgentId
+  const agent = await prisma.user.findFirst({
+    where: { email: 'ai@system.local', role: 'agent', isActive: true },
+    select: { id: true },
+  })
+  aiAgentId = agent?.id ?? null
+  return aiAgentId
+}
+
 const inboundEmailSchema = z.object({
   from: z.string().min(1),
   to: z.string().min(1),
@@ -40,12 +53,15 @@ router.post('/', requireWebhookToken, upload.none(), async (req, res) => {
   const { email: customerEmail, name: customerName } = parseFrom(from)
   const textBody = text ?? (html ? stripHtml(html) : '')
 
+  const resolvedAiAgentId = await getAiAgentId()
+
   const ticket = await prisma.ticket.create({
     data: {
       subject,
       customerEmail,
       customerName: customerName || null,
       status: 'new',
+      assignedAgentId: resolvedAiAgentId,
     },
   })
 
@@ -66,7 +82,7 @@ router.post('/', requireWebhookToken, upload.none(), async (req, res) => {
   )
   await boss.send(
     AUTO_RESOLVE_QUEUE,
-    { ticketId: ticket.id, subject, body: textBody },
+    { ticketId: ticket.id, subject, body: textBody, aiAgentId: resolvedAiAgentId },
     { retryLimit: 3, retryBackoff: true },
   )
 })
