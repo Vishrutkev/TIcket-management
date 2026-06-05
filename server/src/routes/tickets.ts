@@ -84,7 +84,10 @@ router.get('/:id', async (req, res) => {
     where: { id: req.params.id },
     include: {
       assignedAgent: { select: { id: true, name: true, email: true } },
-      messages: { orderBy: { createdAt: 'asc' } },
+      messages: {
+        orderBy: { createdAt: 'asc' },
+        include: { agent: { select: { id: true, name: true } } },
+      },
     },
   })
 
@@ -94,6 +97,36 @@ router.get('/:id', async (req, res) => {
   }
 
   res.json(ticket)
+})
+
+const postMessageSchema = z.object({
+  body: z.string().min(1, 'Reply cannot be empty'),
+})
+
+router.post('/:id/messages', async (req, res) => {
+  const result = postMessageSchema.safeParse(req.body)
+  if (!result.success) {
+    res.status(400).json({ error: result.error.issues[0].message })
+    return
+  }
+
+  const ticket = await prisma.ticket.findUnique({ where: { id: req.params.id } })
+  if (!ticket) {
+    res.status(404).json({ error: 'Ticket not found' })
+    return
+  }
+
+  const message = await prisma.message.create({
+    data: {
+      ticketId: req.params.id,
+      body: result.data.body,
+      senderType: 'agent',
+      agentId: res.locals.user.id,
+    },
+    include: { agent: { select: { id: true, name: true } } },
+  })
+
+  res.status(201).json(message)
 })
 
 router.patch('/:id', async (req, res) => {

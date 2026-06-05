@@ -25,11 +25,15 @@ export type Ticket = {
   _count: { messages: number }
 }
 
+export type MessageSenderType = 'customer' | 'agent'
+
 export type Message = {
   id: string
   ticketId: string
   body: string
-  isFromCustomer: boolean
+  senderType: MessageSenderType
+  agentId: string | null
+  agent: { id: string; name: string } | null
   createdAt: string
 }
 

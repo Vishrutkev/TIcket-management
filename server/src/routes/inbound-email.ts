@@ -94,7 +94,7 @@ router.post('/', requireWebhookToken, upload.none(), async (req, res) => {
       data: {
         ticketId: ticket.id,
         body: textBody,
-        isFromCustomer: true,
+        senderType: 'customer',
       },
     })
   })

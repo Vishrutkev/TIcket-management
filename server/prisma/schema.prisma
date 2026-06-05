@@ -12,6 +12,11 @@ enum Role {
   agent
 }
 
+enum SenderType {
+  customer
+  agent
+}
+
 model User {
   id            String    @id
   name          String
@@ -26,7 +31,8 @@ model User {
 
   sessions        Session[]
   accounts        Account[]
-  assignedTickets Ticket[]  @relation("AssignedAgent")
+  assignedTickets Ticket[]   @relation("AssignedAgent")
+  messages        Message[]  @relation("AgentMessages")
 
   @@map("user")
 }
@@ -97,13 +103,15 @@ model Ticket {
 }
 
 model Message {
-  id             String   @id @default(cuid())
-  ticketId       String
-  body           String
-  isFromCustomer Boolean  @default(true)
-  createdAt      DateTime @default(now())
+  id         String     @id @default(cuid())
+  ticketId   String
+  body       String
+  senderType SenderType @default(customer)
+  agentId    String?
+  createdAt  DateTime   @default(now())
 
   ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  agent  User?  @relation("AgentMessages", fields: [agentId], references: [id], onDelete: SetNull)
 }
 
 model KnowledgeDoc {

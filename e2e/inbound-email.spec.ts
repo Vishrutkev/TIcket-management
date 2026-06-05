@@ -92,7 +92,7 @@ async function fetchTicketDetail(
     subject: string
     customerEmail: string
     status: string
-    messages: Array<{ body: string; isFromCustomer: boolean }>
+    messages: Array<{ body: string; senderType: 'customer' | 'agent' }>
   }>
 }
 
@@ -158,7 +158,7 @@ test.describe('Inbound Email Webhook — happy paths', () => {
     // Fetch full detail to check message body and direction
     const detail = await fetchTicketDetail(request, cookie, ticket.id)
     expect(detail.messages).toHaveLength(1)
-    expect(detail.messages[0].isFromCustomer).toBe(true)
+    expect(detail.messages[0].senderType).toBe('customer')
     expect(detail.messages[0].body).toBe(messageBody)
   })
 
