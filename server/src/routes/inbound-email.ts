@@ -44,6 +44,44 @@ function stripHtml(html: string): string {
 }
 
 /**
+ * Removes quoted reply history from a plain-text email body.
+ * Cuts at the first line that looks like a quote delimiter:
+ *   - Gmail/Apple Mail: "On [date] ... wrote:"  (single or wrapped across two lines)
+ *   - Outlook: "-----Original Message-----" or "____..."
+ *   - Any line starting with ">" (inline quoted text)
+ */
+function stripQuotedReply(text: string): string {
+  const normalized = text.replace(/\r\n/g, '\n')
+  const lines = normalized.split('\n')
+  const out: string[] = []
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    const trimmed = line.trim()
+
+    // Outlook "-----Original Message-----" or similar
+    if (/^-{3,}.*original\s+message.*-{3,}$/i.test(trimmed)) break
+
+    // Outlook underline separator
+    if (/^_{5,}$/.test(trimmed) && i > 0) break
+
+    // Quoted line prefix ">"
+    if (trimmed.startsWith('>') && i > 0) break
+
+    // Gmail / Apple Mail: "On [date] ... wrote:"
+    // May be wrapped: "On [date]\n[name] <email> wrote:"
+    if (/^On .{5,}/.test(trimmed)) {
+      const thisAndNext = trimmed + ' ' + (lines[i + 1] ?? '')
+      if (/wrote:\s*$/.test(thisAndNext)) break
+    }
+
+    out.push(line)
+  }
+
+  return out.join('\n').trim()
+}
+
+/**
  * Extracts a ticket ID from email threading headers (In-Reply-To / References).
  * We embed Message-ID: <ticket-{id}@domain> on outgoing emails, so replies
  * carry that value back in In-Reply-To / References.
@@ -63,7 +101,8 @@ router.post('/', requireWebhookToken, upload.none(), async (req, res) => {
 
   const { from, subject, text, html, headers } = result.data
   const { email: customerEmail, name: customerName } = parseFrom(from)
-  const textBody = text ?? (html ? stripHtml(html) : '')
+  const rawBody = text ?? (html ? stripHtml(html) : '')
+  const textBody = stripQuotedReply(rawBody)
 
   // --- Thread detection: route reply to existing ticket if possible ---
   if (headers) {
