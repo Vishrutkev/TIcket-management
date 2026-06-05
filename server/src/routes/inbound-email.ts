@@ -46,7 +46,7 @@ router.post('/', requireWebhookToken, upload.none(), async (req, res) => {
   }
 
   const { from, subject, text, html } = result.data
-  const { email: customerEmail } = parseFrom(from)
+  const { email: customerEmail, name: customerName } = parseFrom(from)
   const textBody = text ?? (html ? stripHtml(html) : '')
 
   let category: string | null = null
@@ -84,6 +84,7 @@ router.post('/', requireWebhookToken, upload.none(), async (req, res) => {
       data: {
         subject,
         customerEmail,
+        customerName: customerName || null,
         status: 'open',
         category: category ?? null,
         priority: priority ?? null,

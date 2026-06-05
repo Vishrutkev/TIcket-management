@@ -90,6 +90,7 @@ model Ticket {
   id              String   @id @default(cuid())
   subject         String
   customerEmail   String
+  customerName    String?
   status          String   @default("open") // "open" | "resolved" | "closed"
   category        String? // "general_question" | "technical_question" | "refund_request"
   priority        String? // "urgent" | "high" | "normal" | "low"

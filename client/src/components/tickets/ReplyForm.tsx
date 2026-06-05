@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -14,15 +15,19 @@ type Props = {
 
 export default function ReplyForm({ ticketId }: Props) {
   const qc = useQueryClient()
+  const [isPolishing, setIsPolishing] = useState(false)
 
   const { mutateAsync, isPending } = useMutation({
     mutationFn: (body: string) => api.post(`/tickets/${ticketId}/messages`, { body }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['tickets', ticketId] }),
   })
 
-  const { register, handleSubmit, reset, setError, formState: { errors, isSubmitting } } = useForm<ReplyFields>({
+  const { register, handleSubmit, reset, setError, setValue, watch, formState: { errors, isSubmitting } } = useForm<ReplyFields>({
     resolver: zodResolver(replySchema),
   })
+
+  const bodyValue = watch('body')
+  const busy = isPending || isSubmitting
 
   const onSubmit = async (data: ReplyFields) => {
     try {
@@ -33,7 +38,18 @@ export default function ReplyForm({ ticketId }: Props) {
     }
   }
 
-  const busy = isPending || isSubmitting
+  const handlePolish = async () => {
+    if (!bodyValue?.trim()) return
+    setIsPolishing(true)
+    try {
+      const result = await api.post<{ polished: string }>(`/tickets/${ticketId}/polish`, { body: bodyValue })
+      setValue('body', result.polished, { shouldValidate: true, shouldDirty: true })
+    } catch (err) {
+      setError('root', { message: (err as Error).message })
+    } finally {
+      setIsPolishing(false)
+    }
+  }
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-2">
@@ -41,7 +57,7 @@ export default function ReplyForm({ ticketId }: Props) {
       <textarea
         {...register('body')}
         rows={4}
-        disabled={busy}
+        disabled={busy || isPolishing}
         placeholder="Write your reply..."
         className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 resize-none"
       />
@@ -51,8 +67,17 @@ export default function ReplyForm({ ticketId }: Props) {
       {errors.root && (
         <p className="text-xs text-destructive">{errors.root.message}</p>
       )}
-      <div className="flex justify-end">
-        <Button type="submit" disabled={busy} size="sm">
+      <div className="flex justify-between items-center">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={busy || isPolishing || !bodyValue?.trim()}
+          onClick={handlePolish}
+        >
+          {isPolishing ? 'Polishing…' : '✨ Polish'}
+        </Button>
+        <Button type="submit" disabled={busy || isPolishing || !bodyValue?.trim()} size="sm">
           {busy ? 'Sending…' : 'Send reply'}
         </Button>
       </div>

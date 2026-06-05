@@ -135,17 +135,19 @@ const TICKETS: Array<{
   { subject: 'Cannot download invoice as PDF', customerEmail: 'frost.cox@example.com', category: 'technical_question', priority: 'low', status: 'resolved', aiSummary: 'PDF download button on invoice page produces an empty download with 0 bytes. Browser console shows no error.', assign: true },
 ]
 
+function deriveCustomerName(email: string): string {
+  return email
+    .split('@')[0]
+    .split('.')
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ')
+}
+
 async function seedTickets(agentId: string | null) {
-  const existing = await prisma.ticket.count()
-  if (existing >= TICKETS.length) {
-    console.log(`${existing} tickets already exist, skipping ticket seed`)
-    return
-  }
-  // Wipe partial seed data before re-seeding
-  if (existing > 0) {
-    await prisma.ticket.deleteMany()
-    console.log(`Cleared ${existing} existing tickets`)
-  }
+  // Always wipe and re-seed so customerName is backfilled
+  await prisma.message.deleteMany()
+  await prisma.ticket.deleteMany()
+  console.log('Cleared existing tickets and messages')
 
   // Spread creation dates over the past 90 days so sorting is meaningful
   const now = Date.now()
@@ -159,6 +161,7 @@ async function seedTickets(agentId: string | null) {
       data: {
         subject: t.subject,
         customerEmail: t.customerEmail,
+        customerName: deriveCustomerName(t.customerEmail),
         status: t.status,
         category: t.category,
         priority: t.priority,
