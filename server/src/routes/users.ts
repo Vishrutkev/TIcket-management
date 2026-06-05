@@ -12,13 +12,15 @@ const router = Router();
 
 router.use(requireAdmin);
 
+const AI_SYSTEM_EMAIL = 'ai@system.local'
+
 const patchUserSchema = z.object({
   isActive: z.boolean(),
 });
 
 router.get("/", async (_req, res) => {
   const users = await prisma.user.findMany({
-    where: { deletedAt: null },
+    where: { deletedAt: null, email: { not: AI_SYSTEM_EMAIL } },
     select: {
       id: true,
       name: true,
@@ -82,6 +84,10 @@ router.patch("/:id", async (req, res) => {
     res.status(404).json({ error: "User not found" });
     return;
   }
+  if (target.email === AI_SYSTEM_EMAIL) {
+    res.status(403).json({ error: "The AI system account cannot be modified" });
+    return;
+  }
   if (target.role === Role.admin) {
     res.status(403).json({
       error: "Admin accounts cannot be modified through this endpoint",
@@ -111,6 +117,10 @@ router.put("/:id", async (req, res) => {
   });
   if (!target) {
     res.status(404).json({ error: "User not found" });
+    return;
+  }
+  if (target.email === AI_SYSTEM_EMAIL) {
+    res.status(403).json({ error: "The AI system account cannot be modified" });
     return;
   }
   if (target.role === Role.admin) {
@@ -156,6 +166,10 @@ router.delete("/:id", async (req, res) => {
   });
   if (!target) {
     res.status(404).json({ error: "User not found" });
+    return;
+  }
+  if (target.email === AI_SYSTEM_EMAIL) {
+    res.status(403).json({ error: "The AI system account cannot be deleted" });
     return;
   }
   if (target.role === Role.admin) {

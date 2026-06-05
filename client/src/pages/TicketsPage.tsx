@@ -57,7 +57,7 @@ function FilterBar({
         value={filters.status}
         onChange={e => onFiltersChange({ ...filters, status: e.target.value })}
       >
-        <option value="">Active tickets</option>
+        <option value="">All statuses</option>
         <option value="new">New</option>
         <option value="processing">Processing</option>
         <option value="open">Open</option>
@@ -128,16 +128,9 @@ export default function TicketsPage() {
     },
   })
 
-  const { data: resolvedData } = useQuery({
-    queryKey: ['tickets-resolved-count'],
-    queryFn: () => api.get<PaginatedTickets>('/tickets?status=resolved&pageSize=1'),
-    enabled: filters.status !== 'resolved',
-  })
-
   const tickets = data?.data ?? []
   const total = data?.total ?? 0
   const pageCount = data?.pageCount ?? 0
-  const resolvedCount = resolvedData?.total ?? 0
 
   return (
     <div className="min-h-screen bg-background">
@@ -149,21 +142,6 @@ export default function TicketsPage() {
             {!isLoading && `${total} ticket${total !== 1 ? 's' : ''}`}
           </span>
         </div>
-
-        {filters.status !== 'resolved' && resolvedCount > 0 && (
-          <button
-            onClick={() => setFilters({ ...EMPTY_FILTERS, status: 'resolved' })}
-            className="flex items-center gap-2 w-full rounded-lg border border-green-200 bg-green-50 px-4 py-2.5 text-sm text-green-800 hover:bg-green-100 transition-colors text-left"
-          >
-            <span className="inline-flex items-center justify-center rounded-full bg-green-200 text-green-800 text-xs font-semibold px-2 py-0.5">
-              {resolvedCount}
-            </span>
-            <span>
-              ticket{resolvedCount !== 1 ? 's' : ''} resolved — hidden from active view
-            </span>
-            <span className="ml-auto text-green-600 font-medium">View →</span>
-          </button>
-        )}
 
         <FilterBar
           search={searchInput}

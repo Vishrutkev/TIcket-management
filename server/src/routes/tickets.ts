@@ -43,8 +43,7 @@ router.get("/", async (req, res) => {
   } = result.data;
 
   const where = {
-    // No status filter → show only active tickets (hide resolved & closed)
-    ...(status ? { status } : { status: { notIn: ['resolved', 'closed'] } }),
+    ...(status ? { status } : {}),
     ...(category ? { category } : {}),
     ...(priority ? { priority } : {}),
     ...(search
