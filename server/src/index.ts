@@ -4,9 +4,11 @@ import rateLimit from 'express-rate-limit'
 import { toNodeHandler } from 'better-auth/node'
 import { Prisma } from '@prisma/client'
 import { auth } from './lib/auth'
+import boss from './lib/boss'
 import ticketsRouter from './routes/tickets'
 import usersRouter from './routes/users'
 import inboundEmailRouter from './routes/inbound-email'
+import { CLASSIFY_TICKET_QUEUE, classifyTicketWorker } from './workers/classifyTicket'
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -62,6 +64,15 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   res.status(500).json({ error: 'Internal server error' })
 })
 
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`)
-})
+async function startServer() {
+  await boss.start()
+  await boss.createQueue(CLASSIFY_TICKET_QUEUE)
+  await boss.work(CLASSIFY_TICKET_QUEUE, classifyTicketWorker)
+  console.log('[pg-boss] classify-ticket worker registered')
+
+  app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`)
+  })
+}
+
+startServer().catch(console.error)

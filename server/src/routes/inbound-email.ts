@@ -1,10 +1,10 @@
 import { Router } from 'express'
 import multer from 'multer'
 import { z } from 'zod'
-import { generateObject } from 'ai'
-import { openai } from '@ai-sdk/openai'
 import prisma from '../lib/prisma'
+import boss from '../lib/boss'
 import { requireWebhookToken } from '../middleware/webhook'
+import { CLASSIFY_TICKET_QUEUE } from '../workers/classifyTicket'
 
 const router = Router()
 const upload = multer()
@@ -15,12 +15,6 @@ const inboundEmailSchema = z.object({
   subject: z.string().min(1),
   text: z.string().optional(),
   html: z.string().optional(),
-})
-
-const classificationSchema = z.object({
-  category: z.enum(['general_question', 'technical_question', 'refund_request']).nullable(),
-  priority: z.enum(['urgent', 'high', 'normal', 'low']).nullable(),
-  aiSummary: z.string().nullable().describe('1-2 sentence summary of the customer\'s issue for agents'),
 })
 
 function parseFrom(raw: string): { email: string; name: string } {
@@ -34,28 +28,6 @@ function stripHtml(html: string): string {
   return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
 }
 
-async function classifyTicket(ticketId: string, subject: string, body: string) {
-  try {
-    const { object } = await generateObject({
-      model: openai('gpt-5-nano'),
-      schema: classificationSchema,
-      system: 'You are a support ticket classifier. Analyse the email and return the category, priority, and a brief agent-facing summary.',
-      prompt: `Subject: ${subject}\n\nBody: ${body.slice(0, 2000)}`,
-    })
-
-    await prisma.ticket.update({
-      where: { id: ticketId },
-      data: {
-        category: object.category,
-        priority: object.priority,
-        aiSummary: object.aiSummary,
-      },
-    })
-  } catch (err) {
-    console.error('[classify-ticket] failed for ticket', ticketId, err)
-  }
-}
-
 router.post('/', requireWebhookToken, upload.none(), async (req, res) => {
   const result = inboundEmailSchema.safeParse(req.body)
   if (!result.success) {
@@ -67,7 +39,6 @@ router.post('/', requireWebhookToken, upload.none(), async (req, res) => {
   const { email: customerEmail, name: customerName } = parseFrom(from)
   const textBody = text ?? (html ? stripHtml(html) : '')
 
-  // Create the ticket and first message immediately so the webhook returns fast
   const ticket = await prisma.ticket.create({
     data: {
       subject,
@@ -87,8 +58,11 @@ router.post('/', requireWebhookToken, upload.none(), async (req, res) => {
 
   res.json({ ok: true })
 
-  // Classify in the background — does not block the response
-  classifyTicket(ticket.id, subject, textBody)
+  await boss.send(
+    CLASSIFY_TICKET_QUEUE,
+    { ticketId: ticket.id, subject, body: textBody },
+    { retryLimit: 3, retryBackoff: true },
+  )
 })
 
 export default router
