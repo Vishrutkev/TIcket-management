@@ -1,20 +1,53 @@
-import { describe, it, expect } from 'vitest'
-import { screen } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { screen, waitFor } from '@testing-library/react'
 import { renderPage } from '@/test/renderPage'
 import TicketDetail from './TicketDetail'
-import type { TicketWithMessages } from '@tm/core'
+import type { TicketWithMessages, Message } from '@tm/core'
+
+// ---------------------------------------------------------------------------
+// Mocks
+// ---------------------------------------------------------------------------
+
+vi.mock('@/lib/api', () => ({
+  api: { post: vi.fn() },
+}))
+
+import { api } from '@/lib/api'
+const mockApi = api as unknown as { post: ReturnType<typeof vi.fn> }
 
 // ---------------------------------------------------------------------------
 // Fixtures
 // ---------------------------------------------------------------------------
 
-const baseTicket: Pick<TicketWithMessages, 'subject' | 'customerEmail' | 'priority' | 'aiSummary' | 'createdAt'> = {
+const MSG: Message = {
+  id: 'm1',
+  ticketId: 'ticket-1',
+  body: 'Hello',
+  senderType: 'customer',
+  agentId: null,
+  agent: null,
+  createdAt: '2026-06-04T11:00:00.000Z',
+}
+
+const baseTicket: Pick<
+  TicketWithMessages,
+  'id' | 'subject' | 'customerEmail' | 'priority' | 'aiSummary' | 'aiSummaryUpdatedAt' | 'createdAt' | 'messages'
+> = {
+  id: 'ticket-1',
   subject: 'Cannot log in to my account',
   customerEmail: 'customer@example.com',
   priority: 'high',
   aiSummary: 'Customer is unable to log in.',
+  aiSummaryUpdatedAt: '2026-06-04T12:00:00.000Z',
   createdAt: '2026-06-04T10:00:00.000Z',
+  messages: [],
 }
+
+// ---------------------------------------------------------------------------
+
+beforeEach(() => {
+  vi.clearAllMocks()
+})
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -34,7 +67,6 @@ describe('TicketDetail', () => {
 
     it('renders the formatted creation date', () => {
       renderPage(<TicketDetail ticket={baseTicket} />)
-      // Just assert that a date-looking string is present — exact format is locale-dependent
       expect(screen.getByText(/jun/i)).toBeInTheDocument()
     })
 
@@ -71,6 +103,71 @@ describe('TicketDetail', () => {
       renderPage(<TicketDetail ticket={{ ...baseTicket, priority }} />)
       const badge = screen.getByText(priority)
       expect(badge.className).toContain(expectedClass)
+    })
+  })
+
+  describe('summarize button', () => {
+    it('shows "Generate summary" when there is no existing summary', () => {
+      renderPage(<TicketDetail ticket={{ ...baseTicket, aiSummary: null, aiSummaryUpdatedAt: null, messages: [] }} />)
+      expect(screen.getByRole('button', { name: /generate summary/i })).toBeInTheDocument()
+    })
+
+    it('shows "Re-generate summary" when a new message arrived after the last summary', () => {
+      const ticket = {
+        ...baseTicket,
+        aiSummaryUpdatedAt: '2026-06-04T09:00:00.000Z',
+        messages: [MSG], // MSG.createdAt is 11:00, summary is 09:00 → outdated
+      }
+      renderPage(<TicketDetail ticket={ticket} />)
+      expect(screen.getByRole('button', { name: /re-generate summary/i })).toBeInTheDocument()
+    })
+
+    it('hides the button when the summary covers all messages', () => {
+      const ticket = {
+        ...baseTicket,
+        aiSummaryUpdatedAt: '2026-06-04T12:00:00.000Z',
+        messages: [MSG], // MSG.createdAt is 11:00, summary is 12:00 → up-to-date
+      }
+      renderPage(<TicketDetail ticket={ticket} />)
+      expect(screen.queryByRole('button', { name: /summary/i })).not.toBeInTheDocument()
+    })
+
+    it('calls api.post on the summarize endpoint when clicked', async () => {
+      mockApi.post.mockResolvedValue({ aiSummary: 'New summary.', aiSummaryUpdatedAt: new Date().toISOString() })
+
+      const { user } = renderPage(
+        <TicketDetail ticket={{ ...baseTicket, aiSummary: null, aiSummaryUpdatedAt: null, messages: [] }} />,
+      )
+      await user.click(screen.getByRole('button', { name: /generate summary/i }))
+
+      await waitFor(() => {
+        expect(mockApi.post).toHaveBeenCalledWith('/tickets/ticket-1/summarize', {})
+      })
+    })
+
+    it('shows "Summarizing…" and disables the button while in flight', async () => {
+      let resolve!: (v: unknown) => void
+      mockApi.post.mockImplementation(() => new Promise(r => { resolve = r }))
+
+      const { user } = renderPage(
+        <TicketDetail ticket={{ ...baseTicket, aiSummary: null, aiSummaryUpdatedAt: null, messages: [] }} />,
+      )
+      await user.click(screen.getByRole('button', { name: /generate summary/i }))
+
+      expect(screen.getByRole('button', { name: /summarizing/i })).toBeDisabled()
+
+      resolve({ aiSummary: 'Done.', aiSummaryUpdatedAt: new Date().toISOString() })
+    })
+
+    it('shows an error message when the summarize API call fails', async () => {
+      mockApi.post.mockRejectedValue(new Error('Failed to generate summary. Please try again.'))
+
+      const { user } = renderPage(
+        <TicketDetail ticket={{ ...baseTicket, aiSummary: null, aiSummaryUpdatedAt: null, messages: [] }} />,
+      )
+      await user.click(screen.getByRole('button', { name: /generate summary/i }))
+
+      await screen.findByText('Failed to generate summary. Please try again.')
     })
   })
 })

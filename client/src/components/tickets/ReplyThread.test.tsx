@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { screen } from '@testing-library/react'
 import { renderPage } from '@/test/renderPage'
 import ReplyThread from './ReplyThread'
@@ -44,12 +44,12 @@ const AGENT_MSG_NO_AGENT_INFO: Message = {
 
 describe('empty state', () => {
   it('shows "No messages yet." when the messages array is empty', () => {
-    renderPage(<ReplyThread messages={[]} customerEmail="customer@example.com" />)
+    renderPage(<ReplyThread ticketId="ticket-1" messages={[]} customerEmail="customer@example.com" />)
     expect(screen.getByText('No messages yet.')).toBeInTheDocument()
   })
 
   it('shows Messages (0) in the heading', () => {
-    renderPage(<ReplyThread messages={[]} customerEmail="customer@example.com" />)
+    renderPage(<ReplyThread ticketId="ticket-1" messages={[]} customerEmail="customer@example.com" />)
     expect(screen.getByText('Messages (0)')).toBeInTheDocument()
   })
 })
@@ -57,10 +57,7 @@ describe('empty state', () => {
 describe('message count', () => {
   it('reflects the number of messages in the heading', () => {
     renderPage(
-      <ReplyThread
-        messages={[CUSTOMER_MSG, AGENT_MSG]}
-        customerEmail="customer@example.com"
-      />,
+      <ReplyThread ticketId="ticket-1" messages={[CUSTOMER_MSG, AGENT_MSG]} customerEmail="customer@example.com" />,
     )
     expect(screen.getByText('Messages (2)')).toBeInTheDocument()
   })
@@ -69,14 +66,14 @@ describe('message count', () => {
 describe('customer messages', () => {
   it('shows the customer email as the sender label', () => {
     renderPage(
-      <ReplyThread messages={[CUSTOMER_MSG]} customerEmail="customer@example.com" />,
+      <ReplyThread ticketId="ticket-1" messages={[CUSTOMER_MSG]} customerEmail="customer@example.com" />,
     )
     expect(screen.getByText('customer@example.com')).toBeInTheDocument()
   })
 
   it('renders the message body', () => {
     renderPage(
-      <ReplyThread messages={[CUSTOMER_MSG]} customerEmail="customer@example.com" />,
+      <ReplyThread ticketId="ticket-1" messages={[CUSTOMER_MSG]} customerEmail="customer@example.com" />,
     )
     expect(screen.getByText('I need help with my order.')).toBeInTheDocument()
   })
@@ -85,21 +82,21 @@ describe('customer messages', () => {
 describe('agent messages', () => {
   it('shows the agent name as the sender label', () => {
     renderPage(
-      <ReplyThread messages={[AGENT_MSG]} customerEmail="customer@example.com" />,
+      <ReplyThread ticketId="ticket-1" messages={[AGENT_MSG]} customerEmail="customer@example.com" />,
     )
     expect(screen.getByText('Alice Smith')).toBeInTheDocument()
   })
 
   it('falls back to "Support agent" when agent info is absent', () => {
     renderPage(
-      <ReplyThread messages={[AGENT_MSG_NO_AGENT_INFO]} customerEmail="customer@example.com" />,
+      <ReplyThread ticketId="ticket-1" messages={[AGENT_MSG_NO_AGENT_INFO]} customerEmail="customer@example.com" />,
     )
     expect(screen.getByText('Support agent')).toBeInTheDocument()
   })
 
   it('renders the message body', () => {
     renderPage(
-      <ReplyThread messages={[AGENT_MSG]} customerEmail="customer@example.com" />,
+      <ReplyThread ticketId="ticket-1" messages={[AGENT_MSG]} customerEmail="customer@example.com" />,
     )
     expect(screen.getByText('We are looking into it right away.')).toBeInTheDocument()
   })
@@ -108,10 +105,7 @@ describe('agent messages', () => {
 describe('mixed thread', () => {
   it('renders all messages in order', () => {
     renderPage(
-      <ReplyThread
-        messages={[CUSTOMER_MSG, AGENT_MSG]}
-        customerEmail="customer@example.com"
-      />,
+      <ReplyThread ticketId="ticket-1" messages={[CUSTOMER_MSG, AGENT_MSG]} customerEmail="customer@example.com" />,
     )
     expect(screen.getByText('I need help with my order.')).toBeInTheDocument()
     expect(screen.getByText('We are looking into it right away.')).toBeInTheDocument()
@@ -120,13 +114,13 @@ describe('mixed thread', () => {
 
 describe('message styling', () => {
   it('applies bg-card to customer message cards', () => {
-    renderPage(<ReplyThread messages={[CUSTOMER_MSG]} customerEmail="customer@example.com" />)
+    renderPage(<ReplyThread ticketId="ticket-1" messages={[CUSTOMER_MSG]} customerEmail="customer@example.com" />)
     const card = screen.getByText('I need help with my order.').closest('div.rounded-lg')
     expect(card?.className).toContain('bg-card')
   })
 
   it('applies bg-muted/30 to agent message cards', () => {
-    renderPage(<ReplyThread messages={[AGENT_MSG]} customerEmail="customer@example.com" />)
+    renderPage(<ReplyThread ticketId="ticket-1" messages={[AGENT_MSG]} customerEmail="customer@example.com" />)
     const card = screen.getByText('We are looking into it right away.').closest('div.rounded-lg')
     expect(card?.className).toContain('bg-muted/30')
   })
@@ -134,8 +128,10 @@ describe('message styling', () => {
 
 describe('date formatting', () => {
   it('renders a formatted date for each message', () => {
-    renderPage(<ReplyThread messages={[CUSTOMER_MSG]} customerEmail="customer@example.com" />)
-    // Locale-independent check — just assert a month abbreviation is present
+    renderPage(<ReplyThread ticketId="ticket-1" messages={[CUSTOMER_MSG]} customerEmail="customer@example.com" />)
     expect(screen.getByText(/jun/i)).toBeInTheDocument()
   })
 })
+
+// Suppress unused-import warning
+vi.fn()

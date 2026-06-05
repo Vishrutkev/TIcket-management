@@ -8,6 +8,7 @@ function formatDate(iso: string) {
 }
 
 type Props = {
+  ticketId: string
   messages: Message[]
   customerEmail: string
 }

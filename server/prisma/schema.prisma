@@ -95,8 +95,9 @@ model Ticket {
   category        String? // "general_question" | "technical_question" | "refund_request"
   priority        String? // "urgent" | "high" | "normal" | "low"
   assignedAgentId String?
-  aiSummary       String?
-  createdAt       DateTime @default(now())
+  aiSummary           String?
+  aiSummaryUpdatedAt  DateTime?
+  createdAt           DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   assignedAgent User?     @relation("AssignedAgent", fields: [assignedAgentId], references: [id])

@@ -39,7 +39,7 @@ export default function TicketDetailPage() {
           <div className="flex gap-6 items-start">
             <div className="flex-1 min-w-0 space-y-6">
               <TicketDetail ticket={ticket} />
-              <ReplyThread messages={ticket.messages} customerEmail={ticket.customerEmail} />
+              <ReplyThread ticketId={ticket.id} messages={ticket.messages} customerEmail={ticket.customerEmail} />
               <ReplyForm ticketId={ticket.id} />
             </div>
             <UpdateTicket ticket={ticket} agents={agents} />

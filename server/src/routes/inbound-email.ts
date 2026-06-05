@@ -1,8 +1,9 @@
 import { Router } from 'express'
 import multer from 'multer'
 import { z } from 'zod'
+import { generateObject } from 'ai'
+import { openai } from '@ai-sdk/openai'
 import prisma from '../lib/prisma'
-import { anthropic } from '../lib/anthropic'
 import { requireWebhookToken } from '../middleware/webhook'
 
 const router = Router()
@@ -16,16 +17,11 @@ const inboundEmailSchema = z.object({
   html: z.string().optional(),
 })
 
-const aiResultSchema = z.object({
+const classificationSchema = z.object({
   category: z.enum(['general_question', 'technical_question', 'refund_request']).nullable(),
   priority: z.enum(['urgent', 'high', 'normal', 'low']).nullable(),
-  summary: z.string().nullable(),
+  aiSummary: z.string().nullable().describe('1-2 sentence summary of the customer\'s issue for agents'),
 })
-
-const CLASSIFICATION_SYSTEM_PROMPT = `You are a support ticket classifier. Given an email subject and body, respond with ONLY a JSON object (no markdown, no explanation) with:
-- "category": "general_question" | "technical_question" | "refund_request" | null
-- "priority": "urgent" | "high" | "normal" | "low" | null
-- "summary": 1-2 sentence summary of the customer's issue for agents, or null`
 
 function parseFrom(raw: string): { email: string; name: string } {
   const match = raw.match(/^(.+?)\s*<([^>]+)>$/)
@@ -36,6 +32,28 @@ function parseFrom(raw: string): { email: string; name: string } {
 
 function stripHtml(html: string): string {
   return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+}
+
+async function classifyTicket(ticketId: string, subject: string, body: string) {
+  try {
+    const { object } = await generateObject({
+      model: openai('gpt-5-nano'),
+      schema: classificationSchema,
+      system: 'You are a support ticket classifier. Analyse the email and return the category, priority, and a brief agent-facing summary.',
+      prompt: `Subject: ${subject}\n\nBody: ${body.slice(0, 2000)}`,
+    })
+
+    await prisma.ticket.update({
+      where: { id: ticketId },
+      data: {
+        category: object.category,
+        priority: object.priority,
+        aiSummary: object.aiSummary,
+      },
+    })
+  } catch (err) {
+    console.error('[classify-ticket] failed for ticket', ticketId, err)
+  }
 }
 
 router.post('/', requireWebhookToken, upload.none(), async (req, res) => {
@@ -49,58 +67,28 @@ router.post('/', requireWebhookToken, upload.none(), async (req, res) => {
   const { email: customerEmail, name: customerName } = parseFrom(from)
   const textBody = text ?? (html ? stripHtml(html) : '')
 
-  let category: string | null = null
-  let priority: string | null = null
-  let aiSummary: string | null = null
+  // Create the ticket and first message immediately so the webhook returns fast
+  const ticket = await prisma.ticket.create({
+    data: {
+      subject,
+      customerEmail,
+      customerName: customerName || null,
+      status: 'open',
+    },
+  })
 
-  try {
-    const aiResponse = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 256,
-      system: CLASSIFICATION_SYSTEM_PROMPT,
-      messages: [
-        {
-          role: 'user',
-          content: `Subject: ${subject}\n\nBody: ${textBody.slice(0, 2000)}`,
-        },
-      ],
-    })
-
-    const firstBlock = aiResponse.content[0]
-    if (firstBlock.type === 'text') {
-      const aiResult = aiResultSchema.safeParse(JSON.parse(firstBlock.text))
-      if (aiResult.success) {
-        category = aiResult.data.category
-        priority = aiResult.data.priority
-        aiSummary = aiResult.data.summary
-      }
-    }
-  } catch (err) {
-    console.error('[inbound-email] AI classification failed:', err)
-  }
-
-  await prisma.$transaction(async (tx) => {
-    const ticket = await tx.ticket.create({
-      data: {
-        subject,
-        customerEmail,
-        customerName: customerName || null,
-        status: 'open',
-        category: category ?? null,
-        priority: priority ?? null,
-        aiSummary: aiSummary ?? null,
-      },
-    })
-    await tx.message.create({
-      data: {
-        ticketId: ticket.id,
-        body: textBody,
-        senderType: 'customer',
-      },
-    })
+  await prisma.message.create({
+    data: {
+      ticketId: ticket.id,
+      body: textBody,
+      senderType: 'customer',
+    },
   })
 
   res.json({ ok: true })
+
+  // Classify in the background — does not block the response
+  classifyTicket(ticket.id, subject, textBody)
 })
 
 export default router

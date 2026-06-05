@@ -14,11 +14,13 @@ export type Ticket = {
   id: string
   subject: string
   customerEmail: string
+  customerName: string | null
   status: TicketStatus
   category: TicketCategory | null
   priority: TicketPriority | null
   assignedAgentId: string | null
   aiSummary: string | null
+  aiSummaryUpdatedAt: string | null
   createdAt: string
   updatedAt: string
   assignedAgent: { id: string; name: string; email: string } | null

@@ -1,4 +1,9 @@
+import { useState } from 'react'
+import { Sparkles } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
 import { type TicketWithMessages, type TicketPriority } from '@tm/core'
+import { api } from '@/lib/api'
+import { Button } from '@/components/ui/button'
 
 const PRIORITY_STYLES: Record<TicketPriority, string> = {
   urgent: 'bg-red-100 text-red-700',
@@ -23,10 +28,38 @@ function formatDate(iso: string) {
 }
 
 type Props = {
-  ticket: Pick<TicketWithMessages, 'subject' | 'customerEmail' | 'priority' | 'aiSummary' | 'createdAt'>
+  ticket: Pick<
+    TicketWithMessages,
+    'id' | 'subject' | 'customerEmail' | 'priority' | 'aiSummary' | 'aiSummaryUpdatedAt' | 'createdAt' | 'messages'
+  >
 }
 
 export default function TicketDetail({ ticket }: Props) {
+  const qc = useQueryClient()
+  const [isSummarizing, setIsSummarizing] = useState(false)
+  const [summaryError, setSummaryError] = useState<string | null>(null)
+
+  const hasNewMessages = ticket.messages.some(
+    (m) =>
+      !ticket.aiSummaryUpdatedAt ||
+      new Date(m.createdAt) > new Date(ticket.aiSummaryUpdatedAt),
+  )
+  const showButton = !ticket.aiSummary || hasNewMessages
+  const buttonLabel = !ticket.aiSummary ? 'Generate summary' : 'Re-generate summary'
+
+  const handleSummarize = async () => {
+    setIsSummarizing(true)
+    setSummaryError(null)
+    try {
+      await api.post(`/tickets/${ticket.id}/summarize`, {})
+      await qc.invalidateQueries({ queryKey: ['tickets', ticket.id] })
+    } catch (err) {
+      setSummaryError((err as Error).message)
+    } finally {
+      setIsSummarizing(false)
+    }
+  }
+
   return (
     <>
       <div className="space-y-2">
@@ -44,12 +77,32 @@ export default function TicketDetail({ ticket }: Props) {
         </div>
       </div>
 
-      {ticket.aiSummary && (
-        <div className="rounded-lg border bg-card p-4 space-y-1">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">AI Summary</p>
-          <p className="text-sm text-foreground">{ticket.aiSummary}</p>
-        </div>
-      )}
+      <div className="space-y-2">
+        {ticket.aiSummary && (
+          <div className="rounded-lg border bg-card p-4 space-y-1">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">AI Summary</p>
+            <p className="text-sm text-foreground">{ticket.aiSummary}</p>
+          </div>
+        )}
+
+        {showButton && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={isSummarizing}
+            onClick={handleSummarize}
+            className="gap-1.5"
+          >
+            <Sparkles className="size-3.5" />
+            {isSummarizing ? 'Summarizing…' : buttonLabel}
+          </Button>
+        )}
+
+        {summaryError && (
+          <p className="text-xs text-destructive">{summaryError}</p>
+        )}
+      </div>
     </>
   )
 }

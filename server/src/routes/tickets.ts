@@ -171,6 +171,46 @@ router.post("/:id/polish", async (req, res) => {
   }
 });
 
+router.post("/:id/summarize", async (req, res) => {
+  const ticket = await prisma.ticket.findUnique({
+    where: { id: req.params.id },
+    include: { messages: { orderBy: { createdAt: "asc" } } },
+  });
+  if (!ticket) {
+    res.status(404).json({ error: "Ticket not found" });
+    return;
+  }
+
+  const conversation = ticket.messages
+    .map((m) => `[${m.senderType === "customer" ? "Customer" : "Agent"}]: ${m.body}`)
+    .join("\n\n");
+
+  try {
+    const { text } = await generateText({
+      model: openai("gpt-5-nano"),
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are a support ticket analyst. Summarize the ticket and its conversation in 2–3 concise sentences. Cover: the customer's issue, what was discussed or resolved, and the current state. Be factual and brief.",
+        },
+        {
+          role: "user",
+          content: `Subject: ${ticket.subject}\nCustomer: ${ticket.customerName || ticket.customerEmail}\n\nConversation:\n${conversation || "No messages yet."}`,
+        },
+      ],
+    });
+    const updated = await prisma.ticket.update({
+      where: { id: req.params.id },
+      data: { aiSummary: text, aiSummaryUpdatedAt: new Date() },
+    });
+    res.json({ aiSummary: updated.aiSummary, aiSummaryUpdatedAt: updated.aiSummaryUpdatedAt });
+  } catch (err) {
+    console.error("[summarize error]", err);
+    res.status(502).json({ error: "Failed to generate summary. Please try again." });
+  }
+});
+
 router.patch("/:id", async (req, res) => {
   const result = patchTicketSchema.safeParse(req.body);
   if (!result.success) {
