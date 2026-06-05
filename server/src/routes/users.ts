@@ -1,10 +1,10 @@
 import { Router } from "express";
 import { z } from "zod";
+import { randomUUID } from "node:crypto";
 import { hashPassword } from "better-auth/crypto";
 import { Role } from "@prisma/client";
 
 import prisma from "../lib/prisma";
-import { auth } from "../lib/auth";
 import { requireAdmin } from "../middleware/auth";
 import { createUserSchema, editUserSchema } from "@tm/core";
 
@@ -42,26 +42,33 @@ router.post("/", async (req, res) => {
   }
   const { name, email, password } = result.data;
 
-  const existing = await prisma.user.findFirst({
-    where: { email, deletedAt: null },
-  });
+  // Use findUnique (email has a @unique constraint) so both active and
+  // soft-deleted records are caught — prevents a DB unique violation later.
+  const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
     res.status(409).json({ error: "Email already in use" });
     return;
   }
 
-  const signUpResult = await auth.api.signUpEmail({
-    body: { name, email, password },
-  });
+  const userId = randomUUID();
+  const hash = await hashPassword(password);
 
-  await prisma.user.update({
-    where: { id: signUpResult.user.id },
-    data: { role: Role.agent },
-  });
+  await prisma.$transaction([
+    prisma.user.create({
+      data: { id: userId, name, email, role: Role.agent, emailVerified: true },
+    }),
+    prisma.account.create({
+      data: {
+        id: randomUUID(),
+        accountId: userId,
+        providerId: "credential",
+        userId,
+        password: hash,
+      },
+    }),
+  ]);
 
-  res
-    .status(201)
-    .json({ id: signUpResult.user.id, name, email, isActive: true });
+  res.status(201).json({ id: userId, name, email, isActive: true });
 });
 
 router.patch("/:id", async (req, res) => {

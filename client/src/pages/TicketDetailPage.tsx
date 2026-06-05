@@ -12,6 +12,7 @@ import UpdateTicket from '@/components/tickets/UpdateTicket'
 
 
 export default function TicketDetailPage() {
+
   const { id } = useParams<{ id: string }>()
 
   const { data: ticket, isLoading, error } = useQuery({

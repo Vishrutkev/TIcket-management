@@ -107,6 +107,8 @@ export default function TicketsPage() {
   const [page, setPage] = useState(1)
   const search = useDebounce(searchInput, 300)
 
+  throw new Error("Client-Side Error");
+
   // Reset to page 1 whenever search, filters, or sort change
   useEffect(() => { setPage(1) }, [search, filters, sorting])
 
@@ -118,10 +120,10 @@ export default function TicketsPage() {
         params.set('sortBy', sorting[0].id)
         params.set('sortOrder', sorting[0].desc ? 'desc' : 'asc')
       }
-      if (filters.status)   params.set('status', filters.status)
+      if (filters.status) params.set('status', filters.status)
       if (filters.category) params.set('category', filters.category)
       if (filters.priority) params.set('priority', filters.priority)
-      if (search)           params.set('search', search)
+      if (search) params.set('search', search)
       params.set('page', String(page))
       params.set('pageSize', String(PAGE_SIZE))
       return api.get<PaginatedTickets>(`/tickets?${params}`)

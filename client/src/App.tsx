@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { Role } from '@tm/core'
@@ -51,26 +52,28 @@ function RequireAdmin({ children }: { children: React.ReactNode }) {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-    <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route
-          path="/dashboard"
-          element={
-            <RequireAuth>
-              <HomePage />
-            </RequireAuth>
-          }
-        />
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="/tickets" element={<RequireAuth><TicketsPage /></RequireAuth>} />
-        <Route path="/tickets/:id" element={<RequireAuth><TicketDetailPage /></RequireAuth>} />
-        <Route path="/users" element={<RequireAdmin><UsersPage /></RequireAdmin>} />
-        <Route path="/knowledge" element={<RequireAuth><div>Knowledge Base</div></RequireAuth>} />
-      </Routes>
-    </BrowserRouter>
-    </QueryClientProvider>
+    <Sentry.ErrorBoundary fallback={<p className="p-8 text-sm text-destructive">Something went wrong. Please refresh the page.</p>}>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route
+              path="/dashboard"
+              element={
+                <RequireAuth>
+                  <HomePage />
+                </RequireAuth>
+              }
+            />
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/tickets" element={<RequireAuth><TicketsPage /></RequireAuth>} />
+            <Route path="/tickets/:id" element={<RequireAuth><TicketDetailPage /></RequireAuth>} />
+            <Route path="/users" element={<RequireAdmin><UsersPage /></RequireAdmin>} />
+            <Route path="/knowledge" element={<RequireAuth><div>Knowledge Base</div></RequireAuth>} />
+          </Routes>
+        </BrowserRouter>
+      </QueryClientProvider>
+    </Sentry.ErrorBoundary>
   )
 }
 
