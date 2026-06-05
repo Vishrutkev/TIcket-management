@@ -29,6 +29,7 @@ const inboundEmailSchema = z.object({
   subject: z.string().min(1),
   text: z.string().optional(),
   html: z.string().optional(),
+  headers: z.string().optional(),
 })
 
 function parseFrom(raw: string): { email: string; name: string } {
@@ -42,6 +43,17 @@ function stripHtml(html: string): string {
   return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
 }
 
+/**
+ * Extracts a ticket ID from email threading headers (In-Reply-To / References).
+ * We embed Message-ID: <ticket-{id}@domain> on outgoing emails, so replies
+ * carry that value back in In-Reply-To / References.
+ */
+function extractTicketIdFromHeaders(headers: string): string | null {
+  // Match <ticket-{id}@anything> in In-Reply-To or References lines
+  const match = headers.match(/^(?:In-Reply-To|References):.*<ticket-([^@>]+)@/im)
+  return match ? match[1] : null
+}
+
 router.post('/', requireWebhookToken, upload.none(), async (req, res) => {
   const result = inboundEmailSchema.safeParse(req.body)
   if (!result.success) {
@@ -49,10 +61,31 @@ router.post('/', requireWebhookToken, upload.none(), async (req, res) => {
     return
   }
 
-  const { from, subject, text, html } = result.data
+  const { from, subject, text, html, headers } = result.data
   const { email: customerEmail, name: customerName } = parseFrom(from)
   const textBody = text ?? (html ? stripHtml(html) : '')
 
+  // --- Thread detection: route reply to existing ticket if possible ---
+  if (headers) {
+    const ticketId = extractTicketIdFromHeaders(headers)
+    if (ticketId) {
+      const existingTicket = await prisma.ticket.findUnique({ where: { id: ticketId } })
+      if (existingTicket) {
+        await prisma.message.create({
+          data: { ticketId, body: textBody, senderType: 'customer' },
+        })
+        // Re-open resolved tickets when the customer replies
+        if (existingTicket.status === 'resolved') {
+          await prisma.ticket.update({ where: { id: ticketId }, data: { status: 'open' } })
+        }
+        res.json({ ok: true })
+        console.log(`[inbound-email] threaded reply added to ticket ${ticketId}`)
+        return
+      }
+    }
+  }
+
+  // --- No thread match: create a new ticket ---
   const resolvedAiAgentId = await getAiAgentId()
 
   const ticket = await prisma.ticket.create({

@@ -5,6 +5,7 @@ import { generateObject } from 'ai'
 import { openai } from '@ai-sdk/openai'
 import { z } from 'zod'
 import prisma from '../lib/prisma'
+import { sendEmail } from '../lib/sendgrid'
 
 export const AUTO_RESOLVE_QUEUE = 'auto-resolve-ticket'
 
@@ -63,6 +64,13 @@ ${KNOWLEDGE_BASE}`,
       }),
     ])
     console.log(`[auto-resolve] ticket ${ticketId} resolved by AI`)
+
+    sendEmail({
+      to: ticket.customerEmail,
+      subject: `Re: ${subject}`,
+      text: object.reply,
+      ticketId,
+    }).catch((err) => console.error('[sendgrid] failed to send auto-resolve reply:', err))
   } else {
     await prisma.ticket.update({
       where: { id: ticketId },

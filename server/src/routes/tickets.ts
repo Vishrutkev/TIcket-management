@@ -4,6 +4,7 @@ import { generateText } from "ai";
 import { openai } from "@ai-sdk/openai";
 import prisma from "../lib/prisma";
 import { requireAuth } from "../middleware/auth";
+import { sendEmail } from "../lib/sendgrid";
 import {
   ticketQuerySchema,
   patchTicketSchema,
@@ -127,6 +128,14 @@ router.post("/:id/messages", async (req, res) => {
   });
 
   res.status(201).json(message);
+
+  // Fire-and-forget — email failure must not affect the API response
+  sendEmail({
+    to: ticket.customerEmail,
+    subject: `Re: ${ticket.subject}`,
+    text: result.data.body,
+    ticketId: req.params.id,
+  }).catch((err) => console.error('[sendgrid] failed to send agent reply:', err))
 });
 
 router.post("/:id/polish", async (req, res) => {
