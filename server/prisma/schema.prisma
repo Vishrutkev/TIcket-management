@@ -106,6 +106,7 @@ model Message {
   id         String     @id @default(cuid())
   ticketId   String
   body       String
+  html       String?
   senderType SenderType @default(customer)
   agentId    String?
   createdAt  DateTime   @default(now())
