@@ -20,18 +20,18 @@ type Props = {
 }
 
 const STATUS_STYLES: Record<TicketStatus, string> = {
-  new: 'bg-purple-100 text-purple-700',
-  processing: 'bg-amber-100 text-amber-700',
-  open: 'bg-blue-100 text-blue-700',
-  resolved: 'bg-green-100 text-green-700',
-  closed: 'bg-muted text-muted-foreground',
+  new: 'bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300',
+  processing: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
+  open: 'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300',
+  resolved: 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300',
+  closed: 'bg-slate-100 text-slate-600 dark:bg-slate-700/40 dark:text-slate-400',
 }
 
 const PRIORITY_STYLES: Record<TicketPriority, string> = {
-  urgent: 'bg-red-100 text-red-700',
-  high: 'bg-orange-100 text-orange-700',
-  normal: 'bg-blue-100 text-blue-700',
-  low: 'bg-muted text-muted-foreground',
+  urgent: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300',
+  high: 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300',
+  normal: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300',
+  low: 'bg-slate-100 text-slate-600 dark:bg-slate-700/40 dark:text-slate-400',
 }
 
 const CATEGORY_LABELS: Record<TicketCategory, string> = {
@@ -42,7 +42,7 @@ const CATEGORY_LABELS: Record<TicketCategory, string> = {
 
 function Badge({ label, className }: { label: string; className: string }) {
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${className}`}>
+    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${className}`}>
       {label}
     </span>
   )
@@ -65,7 +65,7 @@ export function TicketsTable({ tickets, isLoading, sorting, onSortingChange }: P
         <div className="font-medium max-w-xs">
           <Link
             to={`/tickets/${row.original.id}`}
-            className="hover:underline text-foreground line-clamp-1"
+            className="hover:text-primary transition-colors text-foreground line-clamp-1"
           >
             {row.original.subject}
           </Link>
@@ -81,7 +81,7 @@ export function TicketsTable({ tickets, isLoading, sorting, onSortingChange }: P
       header: 'Customer',
       enableSorting: true,
       cell: ({ getValue }) => (
-        <span className="text-muted-foreground">{getValue()}</span>
+        <span className="text-sm text-muted-foreground">{getValue()}</span>
       ),
     }),
     columnHelper.accessor('status', {
@@ -98,7 +98,7 @@ export function TicketsTable({ tickets, isLoading, sorting, onSortingChange }: P
         const v = getValue()
         return v
           ? <Badge label={v} className={PRIORITY_STYLES[v]} />
-          : <span className="text-muted-foreground">—</span>
+          : <span className="text-muted-foreground/50 text-sm">—</span>
       },
     }),
     columnHelper.accessor('category', {
@@ -108,7 +108,7 @@ export function TicketsTable({ tickets, isLoading, sorting, onSortingChange }: P
         const v = getValue()
         return v
           ? <Badge label={CATEGORY_LABELS[v]} className="bg-muted text-muted-foreground" />
-          : <span className="text-muted-foreground">—</span>
+          : <span className="text-muted-foreground/50 text-sm">—</span>
       },
     }),
     columnHelper.display({
@@ -116,10 +116,10 @@ export function TicketsTable({ tickets, isLoading, sorting, onSortingChange }: P
       header: 'Agent',
       enableSorting: false,
       cell: ({ row }) => (
-        <span className="text-muted-foreground">
+        <span className="text-sm text-muted-foreground">
           {row.original.assignedAgent
             ? row.original.assignedAgent.name
-            : <span className="text-muted-foreground/50">Unassigned</span>}
+            : <span className="text-muted-foreground/40">Unassigned</span>}
         </span>
       ),
     }),
@@ -127,7 +127,9 @@ export function TicketsTable({ tickets, isLoading, sorting, onSortingChange }: P
       header: 'Created',
       enableSorting: true,
       cell: ({ getValue }) => (
-        <span className="text-muted-foreground whitespace-nowrap">{formatDate(getValue())}</span>
+        <span className="text-sm text-muted-foreground whitespace-nowrap tabular-nums">
+          {formatDate(getValue())}
+        </span>
       ),
     }),
   ], [])
@@ -145,11 +147,11 @@ export function TicketsTable({ tickets, isLoading, sorting, onSortingChange }: P
     return (
       <div className="rounded-lg border overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-muted/50">
+          <thead className="bg-muted/40">
             <tr>
               {['Subject', 'Customer', 'Status', 'Priority', 'Category', 'Agent', 'Created'].map(h => (
                 <th key={h} className="text-left px-4 py-3">
-                  <Skeleton className="h-4 w-16" />
+                  <Skeleton className="h-3.5 w-16" />
                 </th>
               ))}
             </tr>
@@ -159,9 +161,9 @@ export function TicketsTable({ tickets, isLoading, sorting, onSortingChange }: P
               <tr key={i} className="bg-card">
                 <td className="px-4 py-3"><Skeleton className="h-4 w-48" /></td>
                 <td className="px-4 py-3"><Skeleton className="h-4 w-36" /></td>
-                <td className="px-4 py-3"><Skeleton className="h-5 w-14 rounded-full" /></td>
-                <td className="px-4 py-3"><Skeleton className="h-5 w-14 rounded-full" /></td>
-                <td className="px-4 py-3"><Skeleton className="h-5 w-16 rounded-full" /></td>
+                <td className="px-4 py-3"><Skeleton className="h-5 w-14 rounded" /></td>
+                <td className="px-4 py-3"><Skeleton className="h-5 w-14 rounded" /></td>
+                <td className="px-4 py-3"><Skeleton className="h-5 w-16 rounded" /></td>
                 <td className="px-4 py-3"><Skeleton className="h-4 w-24" /></td>
                 <td className="px-4 py-3"><Skeleton className="h-4 w-20" /></td>
               </tr>
@@ -173,13 +175,17 @@ export function TicketsTable({ tickets, isLoading, sorting, onSortingChange }: P
   }
 
   if (tickets.length === 0) {
-    return <p className="text-sm text-muted-foreground">No tickets yet.</p>
+    return (
+      <div className="rounded-lg border bg-card flex items-center justify-center py-20">
+        <p className="text-sm text-muted-foreground">No tickets yet.</p>
+      </div>
+    )
   }
 
   return (
     <div className="rounded-lg border overflow-hidden">
       <table className="w-full text-sm">
-        <thead className="bg-muted/50">
+        <thead className="bg-muted/40 border-b border-border">
           {table.getHeaderGroups().map(headerGroup => (
             <tr key={headerGroup.id}>
               {headerGroup.headers.map(header => {
@@ -188,7 +194,7 @@ export function TicketsTable({ tickets, isLoading, sorting, onSortingChange }: P
                 return (
                   <th
                     key={header.id}
-                    className="text-left px-4 py-3 font-medium text-muted-foreground"
+                    className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide"
                   >
                     {canSort ? (
                       <button
@@ -196,9 +202,9 @@ export function TicketsTable({ tickets, isLoading, sorting, onSortingChange }: P
                         onClick={header.column.getToggleSortingHandler()}
                       >
                         {flexRender(header.column.columnDef.header, header.getContext())}
-                        {sorted === 'asc' && <ArrowUp className="h-3.5 w-3.5" />}
-                        {sorted === 'desc' && <ArrowDown className="h-3.5 w-3.5" />}
-                        {!sorted && <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />}
+                        {sorted === 'asc' && <ArrowUp className="h-3 w-3" />}
+                        {sorted === 'desc' && <ArrowDown className="h-3 w-3" />}
+                        {!sorted && <ArrowUpDown className="h-3 w-3 opacity-40" />}
                       </button>
                     ) : (
                       flexRender(header.column.columnDef.header, header.getContext())

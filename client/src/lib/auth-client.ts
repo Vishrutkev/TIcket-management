@@ -2,10 +2,12 @@ import { createAuthClient } from 'better-auth/react'
 import type { auth } from '../../../server/src/lib/auth'
 import { inferAdditionalFields } from 'better-auth/client/plugins'
 
+// Dev:  VITE_API_URL = 'http://localhost:3000'
+// Prod: VITE_API_URL = '' → fall back to window.location.origin (same origin)
+const apiUrl = import.meta.env.VITE_API_URL || window.location.origin
+
 export const authClient = createAuthClient({
-  // VITE_API_URL must be set in .env.local (dev) and the production environment.
-  // A hardcoded localhost URL would silently call the wrong host in any non-local deployment.
-  baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:3000',
+  baseURL: apiUrl,
   plugins: [inferAdditionalFields<typeof auth>()],
 })
 

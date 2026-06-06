@@ -1,5 +1,7 @@
 import "./instrument"; // must be first — initialises Sentry before any other module
 import * as Sentry from "@sentry/node";
+import path from "path";
+import { existsSync } from "fs";
 import express, { NextFunction, Request, Response } from "express";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
@@ -60,6 +62,18 @@ app.get("/api/health", (_req, res) => res.json({ ok: true }));
 app.get("/debug-sentry", (_req, res) => {
   throw new Error("something failed");
 });
+
+// In production, serve the built React client and handle SPA routing
+if (process.env.NODE_ENV === "production") {
+  const clientDist = path.join(__dirname, "../../client/dist");
+  if (existsSync(clientDist)) {
+    app.use(express.static(clientDist));
+    // Express 5 named wildcard — catches all non-API routes for client-side routing
+    app.get("*path", (_req, res) => {
+      res.sendFile(path.join(clientDist, "index.html"));
+    });
+  }
+}
 
 // Sentry error handler — must come after all routes and before the custom error handler
 Sentry.setupExpressErrorHandler(app);

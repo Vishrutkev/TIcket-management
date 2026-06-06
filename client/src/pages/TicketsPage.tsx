@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { type SortingState } from '@tanstack/react-table'
-import { Search } from 'lucide-react'
+import { Search, X } from 'lucide-react'
 import { type PaginatedTickets } from '@tm/core'
-import Navbar from '@/components/Navbar'
 import { api } from '@/lib/api'
 import { TicketsTable } from '@/components/tickets/TicketsTable'
 import { TicketsPagination } from '@/components/tickets/TicketsPagination'
@@ -27,6 +26,9 @@ function useDebounce<T>(value: T, delayMs: number): T {
   return debounced
 }
 
+const selectClass =
+  'h-8 rounded-md border border-border bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring appearance-none cursor-pointer'
+
 function FilterBar({
   search, onSearchChange,
   filters, onFiltersChange,
@@ -36,11 +38,10 @@ function FilterBar({
   filters: Filters
   onFiltersChange: (f: Filters) => void
 }) {
-  const selectClass =
-    'h-8 rounded-md border border-border bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring'
+  const hasFilters = search || filters.status || filters.category || filters.priority
 
   return (
-    <div className="flex flex-wrap items-center gap-3">
+    <div className="flex flex-wrap items-center gap-2">
       <div className="relative">
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
         <input
@@ -48,7 +49,7 @@ function FilterBar({
           placeholder="Search subject or email…"
           value={search}
           onChange={e => onSearchChange(e.target.value)}
-          className="h-8 w-64 rounded-md border border-border bg-background pl-8 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+          className="h-8 w-60 rounded-md border border-border bg-background pl-8 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
         />
       </div>
 
@@ -88,12 +89,13 @@ function FilterBar({
         <option value="low">Low</option>
       </select>
 
-      {(search || filters.status || filters.category || filters.priority) && (
+      {hasFilters && (
         <button
-          className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+          className="h-8 flex items-center gap-1 px-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
           onClick={() => { onSearchChange(''); onFiltersChange(EMPTY_FILTERS) }}
         >
-          Clear all
+          <X className="size-3.5" />
+          Clear
         </button>
       )}
     </div>
@@ -107,9 +109,6 @@ export default function TicketsPage() {
   const [page, setPage] = useState(1)
   const search = useDebounce(searchInput, 300)
 
-  throw new Error("Client-Side Error");
-
-  // Reset to page 1 whenever search, filters, or sort change
   useEffect(() => { setPage(1) }, [search, filters, sorting])
 
   const { data, isLoading, error } = useQuery({
@@ -135,43 +134,42 @@ export default function TicketsPage() {
   const pageCount = data?.pageCount ?? 0
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar />
-      <main className="max-w-6xl mx-auto px-6 py-8 space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold text-foreground">Tickets</h1>
-          <span className="text-sm text-muted-foreground">
-            {!isLoading && `${total} ticket${total !== 1 ? 's' : ''}`}
+    <div className="px-6 py-8 space-y-5 max-w-7xl">
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-semibold text-foreground">Tickets</h1>
+        {!isLoading && (
+          <span className="text-sm text-muted-foreground tabular-nums">
+            {total} ticket{total !== 1 ? 's' : ''}
           </span>
-        </div>
-
-        <FilterBar
-          search={searchInput}
-          onSearchChange={setSearchInput}
-          filters={filters}
-          onFiltersChange={setFilters}
-        />
-
-        {error ? (
-          <p className="text-sm text-destructive">{(error as Error).message}</p>
-        ) : (
-          <>
-            <TicketsTable
-              tickets={tickets}
-              isLoading={isLoading}
-              sorting={sorting}
-              onSortingChange={setSorting}
-            />
-            <TicketsPagination
-              page={page}
-              pageCount={pageCount}
-              total={total}
-              pageSize={PAGE_SIZE}
-              onPageChange={setPage}
-            />
-          </>
         )}
-      </main>
+      </div>
+
+      <FilterBar
+        search={searchInput}
+        onSearchChange={setSearchInput}
+        filters={filters}
+        onFiltersChange={setFilters}
+      />
+
+      {error ? (
+        <p className="text-sm text-destructive">{(error as Error).message}</p>
+      ) : (
+        <>
+          <TicketsTable
+            tickets={tickets}
+            isLoading={isLoading}
+            sorting={sorting}
+            onSortingChange={setSorting}
+          />
+          <TicketsPagination
+            page={page}
+            pageCount={pageCount}
+            total={total}
+            pageSize={PAGE_SIZE}
+            onPageChange={setPage}
+          />
+        </>
+      )}
     </div>
   )
 }

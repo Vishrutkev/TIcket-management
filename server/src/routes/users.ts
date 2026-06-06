@@ -12,7 +12,7 @@ const router = Router();
 
 router.use(requireAdmin);
 
-const AI_SYSTEM_EMAIL = 'ai@system.local'
+const AI_SYSTEM_EMAIL = "ai@system.local";
 
 const patchUserSchema = z.object({
   isActive: z.boolean(),

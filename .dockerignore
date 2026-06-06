@@ -1,0 +1,25 @@
+# Dependencies — rebuilt inside Docker
+node_modules
+*/node_modules
+
+# Build outputs — produced inside Docker
+*/dist
+playwright-report
+test-results
+
+# Local env files — secrets come from Railway env vars, not files
+.env
+**/.env
+**/.env.local
+**/.env.test
+
+# Tests & docs — not needed in the image
+e2e/
+**/*.test.tsx
+**/*.test.ts
+*.md
+CLAUDE.md
+
+# Git
+.git
+.gitignore

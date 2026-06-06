@@ -119,10 +119,10 @@ describe('message styling', () => {
     expect(card?.className).toContain('bg-card')
   })
 
-  it('applies bg-muted/30 to agent message cards', () => {
+  it('applies a distinct background to agent message cards', () => {
     renderPage(<ReplyThread ticketId="ticket-1" messages={[AGENT_MSG]} customerEmail="customer@example.com" />)
     const card = screen.getByText('We are looking into it right away.').closest('div.rounded-lg')
-    expect(card?.className).toContain('bg-muted/30')
+    expect(card?.className).toContain('bg-primary/5')
   })
 })
 

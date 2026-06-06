@@ -6,15 +6,15 @@ import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 
 const PRIORITY_STYLES: Record<TicketPriority, string> = {
-  urgent: 'bg-red-100 text-red-700',
-  high: 'bg-orange-100 text-orange-700',
-  normal: 'bg-blue-100 text-blue-700',
-  low: 'bg-muted text-muted-foreground',
+  urgent: 'text-red-700  font-semibold dark:text-red-300',
+  high:   'text-rose-700 font-semibold dark:text-rose-300',
+  normal: 'text-blue-700 font-semibold dark:text-blue-300',
+  low:    'text-slate-500 font-semibold dark:text-slate-400',
 }
 
 function Badge({ label, className }: { label: string; className: string }) {
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${className}`}>
+    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${className}`}>
       {label}
     </span>
   )
@@ -63,7 +63,7 @@ export default function TicketDetail({ ticket }: Props) {
   return (
     <>
       <div className="space-y-2">
-        <h1 className="text-2xl font-semibold text-foreground">{ticket.subject}</h1>
+        <h1 className="text-xl font-semibold text-foreground leading-snug">{ticket.subject}</h1>
         <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
           <span>{ticket.customerEmail}</span>
           {ticket.priority && (
@@ -73,15 +73,18 @@ export default function TicketDetail({ ticket }: Props) {
             </>
           )}
           <span>·</span>
-          <span>{formatDate(ticket.createdAt)}</span>
+          <span className="tabular-nums">{formatDate(ticket.createdAt)}</span>
         </div>
       </div>
 
       <div className="space-y-2">
         {ticket.aiSummary && (
-          <div className="rounded-lg border bg-card p-4 space-y-1">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">AI Summary</p>
-            <p className="text-sm text-foreground">{ticket.aiSummary}</p>
+          <div className="rounded-lg border bg-primary/5 border-primary/20 p-4 space-y-1.5">
+            <div className="flex items-center gap-1.5">
+              <Sparkles className="size-3.5 text-primary" />
+              <p className="text-xs font-medium text-primary uppercase tracking-wide">AI Summary</p>
+            </div>
+            <p className="text-sm text-foreground leading-relaxed">{ticket.aiSummary}</p>
           </div>
         )}
 

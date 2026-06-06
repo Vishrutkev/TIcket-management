@@ -1,7 +1,10 @@
 import axios from 'axios'
 import type { AxiosInstance } from 'axios'
 
-const BASE = `${import.meta.env.VITE_API_URL ?? 'http://localhost:3000'}/api`
+// VITE_API_URL is set at build time.
+// Dev:  http://localhost:3000  (from client/.env.local)
+// Prod: '' (from client/.env.production) → uses relative /api/* paths (same origin)
+const BASE = (import.meta.env.VITE_API_URL || '') + '/api'
 
 export const httpClient: AxiosInstance = axios.create({
   baseURL: BASE,
@@ -9,7 +12,6 @@ export const httpClient: AxiosInstance = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
-// Extract the server's error message from failed responses
 httpClient.interceptors.response.use(
   (response) => response,
   (error) => {

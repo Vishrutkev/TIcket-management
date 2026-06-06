@@ -15,30 +15,37 @@ type Props = {
 
 export default function ReplyThread({ messages, customerEmail }: Props) {
   return (
-    <div className="space-y-2">
-      <h2 className="text-sm font-medium text-muted-foreground">
+    <div className="space-y-3">
+      <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
         Messages ({messages.length})
       </h2>
+
       {messages.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No messages yet.</p>
+        <p className="text-sm text-muted-foreground py-4">No messages yet.</p>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-2">
           {messages.map((message) => (
             <div
               key={message.id}
               className={`rounded-lg border p-4 space-y-2 ${
-                message.senderType === 'customer' ? 'bg-card' : 'bg-muted/30'
+                message.senderType === 'customer'
+                  ? 'bg-card'
+                  : 'bg-primary/5 border-primary/15'
               }`}
             >
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <span className="text-xs font-medium text-muted-foreground">
                   {message.senderType === 'customer'
                     ? customerEmail
                     : message.agent?.name ?? 'Support agent'}
                 </span>
-                <span className="text-xs text-muted-foreground">{formatDate(message.createdAt)}</span>
+                <span className="text-xs text-muted-foreground/70 whitespace-nowrap tabular-nums">
+                  {formatDate(message.createdAt)}
+                </span>
               </div>
-              <p className="text-sm text-foreground whitespace-pre-wrap">{message.body}</p>
+              <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
+                {message.body}
+              </p>
             </div>
           ))}
         </div>

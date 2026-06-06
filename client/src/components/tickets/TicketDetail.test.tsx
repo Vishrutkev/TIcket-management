@@ -95,10 +95,10 @@ describe('TicketDetail', () => {
     })
 
     it.each([
-      ['urgent', 'bg-red-100'],
-      ['high', 'bg-orange-100'],
-      ['normal', 'bg-blue-100'],
-      ['low', 'bg-muted'],
+      ['urgent', 'text-red-700'],
+      ['high', 'text-rose-700'],
+      ['normal', 'text-blue-700'],
+      ['low', 'text-slate-500'],
     ] as const)('applies correct style for priority "%s"', (priority, expectedClass) => {
       renderPage(<TicketDetail ticket={{ ...baseTicket, priority }} />)
       const badge = screen.getByText(priority)
