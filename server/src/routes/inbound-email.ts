@@ -26,7 +26,7 @@ async function getAiAgentId(): Promise<string | null> {
 const inboundEmailSchema = z.object({
   from: z.string().min(1),
   to: z.string().min(1),
-  subject: z.string().min(1),
+  subject: z.string().optional(),
   text: z.string().optional(),
   html: z.string().optional(),
   headers: z.string().optional(),
@@ -93,23 +93,38 @@ function extractTicketIdFromHeaders(headers: string): string | null {
 }
 
 router.post('/', requireWebhookToken, upload.none(), async (req, res) => {
+  console.log('[inbound-email] raw body fields:', {
+    from: req.body?.from,
+    subject: req.body?.subject,
+    textLength: req.body?.text?.length,
+    htmlLength: req.body?.html?.length,
+    textPreview: req.body?.text?.slice(0, 200),
+    htmlPreview: req.body?.html?.slice(0, 200),
+  })
+
   const result = inboundEmailSchema.safeParse(req.body)
   if (!result.success) {
     res.status(400).json({ error: result.error.issues[0].message })
     return
   }
 
-  const { from, subject, text, html, headers } = result.data
+  const { from, subject: rawSubject, text, html, headers } = result.data
+  const subject = rawSubject?.trim() || '(No Subject)'
   const { email: customerEmail, name: customerName } = parseFrom(from)
-  const rawBody = text ?? (html ? stripHtml(html) : '')
+  // Use || not ?? so an empty-string text field (HTML-only emails) falls through to html
+  const rawBody = text || (html ? stripHtml(html) : '')
+  console.log('[inbound-email] parsed body:', { rawBodyLength: rawBody.length, rawBodyPreview: rawBody.slice(0, 200) })
   const textBody = stripQuotedReply(rawBody)
 
   // --- Thread detection: route reply to existing ticket if possible ---
+
+  // 1. Header-based threading (primary): check In-Reply-To / References for our Message-ID
   if (headers) {
     const ticketId = extractTicketIdFromHeaders(headers)
     if (ticketId) {
       const existingTicket = await prisma.ticket.findUnique({ where: { id: ticketId } })
-      if (existingTicket) {
+      // Guard: ticket must exist AND belong to this sender to prevent cross-customer threading
+      if (existingTicket && existingTicket.customerEmail === customerEmail) {
         await prisma.message.create({
           data: { ticketId, body: textBody, senderType: 'customer' },
         })
@@ -118,9 +133,35 @@ router.post('/', requireWebhookToken, upload.none(), async (req, res) => {
           await prisma.ticket.update({ where: { id: ticketId }, data: { status: 'open' } })
         }
         res.json({ ok: true })
-        console.log(`[inbound-email] threaded reply added to ticket ${ticketId}`)
+        console.log(`[inbound-email] threaded reply added to ticket ${ticketId} (header match)`)
         return
       }
+    }
+  }
+
+  // 2. Subject-based fallback: catches replies from clients that strip threading headers.
+  //    Only runs when the subject has a "Re:" prefix — a reliable signal that this is a reply.
+  const rePrefix = /^re:\s*/i
+  if (rePrefix.test(subject)) {
+    const originalSubject = subject.replace(rePrefix, '').trim()
+    const existingBySubject = await prisma.ticket.findFirst({
+      where: {
+        subject: { equals: originalSubject, mode: 'insensitive' },
+        customerEmail,
+        status: { in: ['new', 'processing', 'open'] },
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+    if (existingBySubject) {
+      await prisma.message.create({
+        data: { ticketId: existingBySubject.id, body: textBody, senderType: 'customer' },
+      })
+      if (existingBySubject.status === 'resolved') {
+        await prisma.ticket.update({ where: { id: existingBySubject.id }, data: { status: 'open' } })
+      }
+      res.json({ ok: true })
+      console.log(`[inbound-email] threaded reply added to ticket ${existingBySubject.id} (subject match)`)
+      return
     }
   }
 
