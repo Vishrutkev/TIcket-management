@@ -25,6 +25,10 @@ import {
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Trust the first proxy (Railway, Heroku, etc.) so X-Forwarded-For is used
+// correctly by express-rate-limit and Better Auth.
+app.set("trust proxy", 1);
+
 // CORS: use the same CLIENT_URL env var that Better Auth trustedOrigins uses.
 // Never hardcode a port here — a mismatch silently trusts the wrong origin.
 app.use(
