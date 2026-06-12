@@ -1,6 +1,7 @@
 import { Role } from '@prisma/client'
+import { randomUUID } from 'crypto'
+import { hash } from 'bcryptjs'
 import prisma from '../src/lib/prisma'
-import { auth } from '../src/lib/auth'
 
 async function createUser(name: string, email: string, password: string, role: Role) {
   const existing = await prisma.user.findUnique({ where: { email } })
@@ -8,13 +9,26 @@ async function createUser(name: string, email: string, password: string, role: R
     console.log(`User ${email} already exists, skipping`)
     return existing
   }
-  const result = await auth.api.signUpEmail({ body: { name, email, password } })
-  await prisma.user.update({
-    where: { id: result.user.id },
-    data: { role, emailVerified: true },
+
+  const id = randomUUID()
+  const passwordHash = await hash(password, 10)
+
+  const user = await prisma.user.create({
+    data: { id, name, email, emailVerified: true, role, isActive: true },
   })
+
+  await prisma.account.create({
+    data: {
+      id: randomUUID(),
+      accountId: user.id,
+      providerId: 'credential',
+      userId: user.id,
+      password: passwordHash,
+    },
+  })
+
   console.log(`Seeded ${role}: ${email}`)
-  return result.user
+  return user
 }
 
 const TICKETS: Array<{
