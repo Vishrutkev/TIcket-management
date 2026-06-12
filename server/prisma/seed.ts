@@ -1,6 +1,6 @@
 import { Role } from '@prisma/client'
 import { randomUUID } from 'crypto'
-import { hash } from 'bcryptjs'
+import { hashPassword } from '@better-auth/utils/password'
 import prisma from '../src/lib/prisma'
 
 async function createUser(name: string, email: string, password: string, role: Role) {
@@ -11,7 +11,7 @@ async function createUser(name: string, email: string, password: string, role: R
   }
 
   const id = randomUUID()
-  const passwordHash = await hash(password, 10)
+  const passwordHash = await hashPassword(password)
 
   const user = await prisma.user.create({
     data: { id, name, email, emailVerified: true, role, isActive: true },
