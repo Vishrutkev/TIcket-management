@@ -2,12 +2,10 @@ import { createAuthClient } from 'better-auth/react'
 import type { auth } from '../../../server/src/lib/auth'
 import { inferAdditionalFields } from 'better-auth/client/plugins'
 
-// Dev:  VITE_API_URL = 'http://localhost:3000'
-// Prod: VITE_API_URL = '' → fall back to window.location.origin (same origin)
-const apiUrl = import.meta.env.VITE_API_URL || window.location.origin
-
+// Always use the current origin so auth requests go through the Vite proxy
+// in dev (no CORS) and stay same-origin in prod.
 export const authClient = createAuthClient({
-  baseURL: apiUrl,
+  baseURL: window.location.origin,
   plugins: [inferAdditionalFields<typeof auth>()],
 })
 
