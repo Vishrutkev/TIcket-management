@@ -4,6 +4,7 @@ node_modules
 
 # Build outputs — produced inside Docker
 */dist
+core/dist
 playwright-report
 test-results
 
@@ -19,6 +20,8 @@ e2e/
 **/*.test.ts
 *.md
 CLAUDE.md
+# Knowledge base is runtime data, not docs — keep it in the image
+!server/knowledge-base.md
 
 # Git
 .git

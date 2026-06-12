@@ -93,15 +93,6 @@ function extractTicketIdFromHeaders(headers: string): string | null {
 }
 
 router.post('/', requireWebhookToken, upload.none(), async (req, res) => {
-  console.log('[inbound-email] raw body fields:', {
-    from: req.body?.from,
-    subject: req.body?.subject,
-    textLength: req.body?.text?.length,
-    htmlLength: req.body?.html?.length,
-    textPreview: req.body?.text?.slice(0, 200),
-    htmlPreview: req.body?.html?.slice(0, 200),
-  })
-
   const result = inboundEmailSchema.safeParse(req.body)
   if (!result.success) {
     res.status(400).json({ error: result.error.issues[0].message })
@@ -113,7 +104,6 @@ router.post('/', requireWebhookToken, upload.none(), async (req, res) => {
   const { email: customerEmail, name: customerName } = parseFrom(from)
   // Use || not ?? so an empty-string text field (HTML-only emails) falls through to html
   const rawBody = text || (html ? stripHtml(html) : '')
-  console.log('[inbound-email] parsed body:', { rawBodyLength: rawBody.length, rawBodyPreview: rawBody.slice(0, 200) })
   const textBody = stripQuotedReply(rawBody)
 
   // --- Thread detection: route reply to existing ticket if possible ---

@@ -65,7 +65,7 @@ app.get("/debug-sentry", (_req, res) => {
 
 // In production, serve the built React client and handle SPA routing
 if (process.env.NODE_ENV === "production") {
-  const clientDist = path.join(__dirname, "../../client/dist");
+  const clientDist = path.join(process.cwd(), "client/dist");
   if (existsSync(clientDist)) {
     app.use(express.static(clientDist));
     // Express 5 named wildcard — catches all non-API routes for client-side routing

@@ -17,14 +17,21 @@ COPY core/   ./core/
 COPY client/ ./client/
 COPY server/ ./server/
 
-# Build client (Vite, reads client/.env.production → VITE_API_URL='')
-# Build server (prisma generate + tsc → server/dist/)
-RUN npm run build --workspace=client && \
+# Generate Prisma client first so @prisma/client types (e.g. Role) are available
+# to the core and server TypeScript compilers.
+RUN node_modules/.bin/prisma generate --schema=server/prisma/schema.prisma
+
+# Build in dependency order: core → client → server
+RUN npm run build --workspace=core && \
+    npm run build --workspace=client && \
     npm run build --workspace=server
 
 # ─── Stage 2: Production image ────────────────────────────────────────────────
 FROM node:20-alpine AS runner
 WORKDIR /app
+
+# Prisma's query engine requires OpenSSL at runtime
+RUN apk add --no-cache openssl
 
 ENV NODE_ENV=production
 
@@ -38,8 +45,9 @@ COPY server/package.json ./server/
 # `prisma migrate deploy` at container startup.
 COPY --from=builder /app/node_modules ./node_modules
 
-# core source — @tm/core symlink in node_modules points here at runtime
-COPY --from=builder /app/core ./core
+# core compiled output — @tm/core resolves via node_modules symlink to ./core/dist
+COPY --from=builder /app/core/dist ./core/dist
+COPY --from=builder /app/core/package.json ./core/package.json
 
 # Server compiled output
 COPY --from=builder /app/server/dist ./server/dist
@@ -50,10 +58,15 @@ COPY --from=builder /app/client/dist ./client/dist
 # Prisma schema + migration files needed by migrate deploy
 COPY server/prisma ./server/prisma
 
+# knowledge-base.md is read at runtime relative to __dirname in the compiled worker.
+# Because tsc rootDir expands to /app (due to @tm/core alias), __dirname inside
+# server/dist/server/src/workers/ resolves ../../ to server/dist/server/.
+COPY server/knowledge-base.md ./server/dist/server/knowledge-base.md
+
 EXPOSE 3000
 
 # 1. Run any pending migrations against the production DB
 # 2. Start the server (which also serves the client SPA)
 CMD ["sh", "-c", \
   "node_modules/.bin/prisma migrate deploy --schema=server/prisma/schema.prisma && \
-   node server/dist/index.js"]
+   node server/dist/server/src/index.js"]

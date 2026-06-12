@@ -1,0 +1,54 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ticketmanagement
+    ports:
+      - "5433:5432"   # 5433 on host so it doesn't clash with your local Postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/ticketmanagement
+      PORT: "3000"
+      NODE_ENV: production
+      CLIENT_URL: http://localhost:3000
+
+      # Better Auth
+      BETTER_AUTH_SECRET: local-docker-secret-change-me
+      BETTER_AUTH_URL: http://localhost:3000
+
+      # Seed credentials
+      SEED_ADMIN_EMAIL: admin@example.com
+      SEED_ADMIN_PASSWORD: password123
+      SEED_AGENT_EMAIL: agent@example.com
+      SEED_AGENT_PASSWORD: agent-password-123
+
+      # Copy real API keys from server/.env (leave blank to skip those features)
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
+      SENDGRID_FROM_EMAIL: ${SENDGRID_FROM_EMAIL:-}
+      SENDGRID_WEBHOOK_TOKEN: ${SENDGRID_WEBHOOK_TOKEN:-}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+
+volumes:
+  pgdata:

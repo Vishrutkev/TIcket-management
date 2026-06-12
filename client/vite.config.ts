@@ -14,6 +14,9 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      // Point Vite directly at the TS source so it bundles core inline,
+      // avoiding CJS named-export detection issues with the compiled dist.
+      '@tm/core': path.resolve(__dirname, '../core/src/index.ts'),
     },
   },
   server: {
