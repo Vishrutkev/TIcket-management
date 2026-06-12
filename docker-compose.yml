@@ -30,7 +30,7 @@ services:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/ticketmanagement
       PORT: "3000"
       NODE_ENV: production
-      CLIENT_URL: http://localhost:3000
+      CLIENT_URL: http://localhost:5173
 
       # Better Auth
       BETTER_AUTH_SECRET: local-docker-secret-change-me
